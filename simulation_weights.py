@@ -124,6 +124,7 @@ class Weights(MethodCM):
         # THE WEIGHTS SHOULD BE AT THE RANGE OF (0, 1)
         # bounds = [(0, 1) for _ in range(self.shares_n)]
 
+        print("***** STARTING OPTIMIZATION FOR WEIGHTS *****")
         result = minimize(lambda x: self.obj(x)[0],
                           weights_init,
                           method='SLSQP',
