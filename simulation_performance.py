@@ -34,3 +34,7 @@ class Performance:
     @property
     def perf_mse(self) -> float:
         return np.mean(np.sqrt(np.sum(self.perf_error ** 2)))
+
+    @property
+    def perf_corr(self) -> float:
+        return np.corrcoef(self.original_idx, self.replicated_idx)[0, 1]
