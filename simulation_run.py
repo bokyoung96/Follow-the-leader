@@ -159,7 +159,7 @@ def run(iters: int = 1000, report_interval: int = 50):
 
     attempts = 0
     raw_attempts = 0
-    logging.basicConfig(filename='LOGGER_TEST.log',
+    logging.basicConfig(filename='LOGGER.log',
                         level=logging.INFO,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger("RunCM.run_simulation")
@@ -171,6 +171,7 @@ def run(iters: int = 1000, report_interval: int = 50):
             msres_out.append(msre_out)
             logger.info(
                 "RAW {} / ATTEMPT {}: SUCCESSS".format(raw_attempts + 1, attempts + 1))
+            print("ATTEMPT {} SUCCESS. MOVING ON...".format(attempts + 1))
             raw_attempts += 1
             attempts += 1
 
