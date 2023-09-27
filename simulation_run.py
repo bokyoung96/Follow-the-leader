@@ -63,7 +63,13 @@ class RunCM(RunAbstr, Weights):
                  EV: float = 0.99,
                  min_R2: float = 0.8):
         super().__init__(N, T, k, EV, min_R2)
-        self.opt_weights, self.opt_res = self.optimize()
+        if self.shares_n == 1:
+            self.opt_weights = self.optimize()
+            self.opt_res = None
+            self.indiv_inv = True
+        else:
+            self.opt_weights, self.opt_res = self.optimize()
+            self.indiv_inv = False
 
     @property
     def shares_out_sample(self) -> np.ndarray:
@@ -71,11 +77,17 @@ class RunCM(RunAbstr, Weights):
 
     @property
     def in_sample_replica_idx(self):
-        return np.dot(self.opt_weights, self.shares)
+        if self.shares_n == 1:
+            return self.shares
+        else:
+            return np.dot(self.opt_weights, self.shares)
 
     @property
     def out_sample_replica_idx(self):
-        return np.dot(self.opt_weights, self.shares_out_sample)
+        if self.shares_n == 1:
+            return self.shares_out_sample.flatten()
+        else:
+            return np.dot(self.opt_weights, self.shares_out_sample)
 
     @property
     def replica_idx(self):
@@ -88,7 +100,7 @@ class RunCM(RunAbstr, Weights):
                                self.out_sample_replica_idx)
 
         msres_in = [len(self.F_pca),
-                    len(self.shares),
+                    self.shares_n,
                     perf_in.perf_mean,
                     perf_in.perf_stdev,
                     perf_in.perf_mad,
@@ -139,7 +151,7 @@ class RunCM(RunAbstr, Weights):
         plt.show()
 
 
-def run(iters: int = 6, report_interval: int = 2):
+def run(iters: int = 1000, report_interval: int = 50):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
     msres_in = []
@@ -147,13 +159,13 @@ def run(iters: int = 6, report_interval: int = 2):
 
     attempts = 0
     raw_attempts = 0
-    logging.basicConfig(filename='LOGGER.log',
+    logging.basicConfig(filename='LOGGER_TEST.log',
                         level=logging.INFO,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger("RunCM.run_simulation")
     while attempts <= iters:
         run = RunCM()
-        if run.opt_res.success:
+        if (run.indiv_inv) or (run.opt_res.success):
             msre_in, msre_out = run.run_simulation()
             msres_in.append(msre_in)
             msres_out.append(msre_out)
@@ -191,5 +203,5 @@ def run(iters: int = 6, report_interval: int = 2):
 
 if __name__ == "__main__":
     msres_in, msres_out = run()
-    # pd.DataFrame(msres_in).to_pickle("./EV99_MSRES_IN.pkl")
-    # pd.DataFrame(msres_out).to_pickle("./EV99_MSRES_OUT.pkl")
+    pd.DataFrame(msres_in).to_pickle("./EV99_MSRES_IN.pkl")
+    pd.DataFrame(msres_out).to_pickle("./EV99_MSRES_OUT.pkl")

@@ -29,6 +29,8 @@ class MethodCM(Generator, Func):
         in_sample, out_sample: Stock sample division for observation.
         idx_in_sample, idx_out_sample: Index sample division for observation.
         F_rw_in_sample, F_s_in_sample: Factor in-sample for replicating index weight calculation.
+        F_pca, FL_pca: Factors and factor loadings in-sample generation by PCA.
+        shares_n: Used shares for replicating the original index by get_shares().
 
         <NOTIFICATION>
         To observe method using the whole data instead of in-sample data, refer to:
@@ -54,6 +56,7 @@ class MethodCM(Generator, Func):
         self.F_s_in_sample = None
         self.get_pca_factor_loadings()
         print("***** FACTOR LOADING COMPLETE *****")
+        self.shares_n = None
 
     def get_pca_factors(self) -> np.ndarray:
         """
@@ -162,6 +165,7 @@ class MethodCM(Generator, Func):
         <DESCRIPTION>
         Get shares explaining each factors.
         Process done by regression, explained specifically in the article.
+        Exceptions exist for investing on only 1 share.
         IN_SAMPLE.
         """
         factors = self.rank_factors()
@@ -202,8 +206,14 @@ class MethodCM(Generator, Func):
             count += 1
 
         print("\n***** PROGRESS FINISHED *****\n")
-        x = np.unique(x, axis=0)
-        print("\n***** NUMBER OF SHARES: {} *****\n".format(len(x)))
+        if len(x) == self.T / 2:
+            x = pd.unique(x)
+            self.shares_n = 1
+            print("\n***** NUMBER OF SHARES: {} *****\n".format(self.shares_n))
+        else:
+            x = np.unique(x, axis=0)
+            self.shares_n = len(x)
+            print("\n***** NUMBER OF SHARES: {} *****\n".format(self.shares_n))
         return x
 
 

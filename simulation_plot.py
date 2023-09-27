@@ -13,15 +13,18 @@ class Plot(Weights):
                  N: int = 100,
                  T: int = 1000,
                  k: int = 5,
-                 EV: float = 0.999,
+                 EV: float = 0.99,
                  min_R2: float = 0.8):
         super().__init__(N, T, k, EV, min_R2)
         """
         <DESCRIPTION>
         Plots used for simulation.
         """
+        if self.shares_n == 1:
+            self.opt_weights = self.optimize()
+        else:
+            self.opt_weights, self.opt_res = self.optimize()
         self.idx_method = pd.DataFrame(self.shares)
-        self.opt_weights, self.opt_res = self.optimize()
 
     def plot_generator_price(self) -> plt.plot:
         """
@@ -67,7 +70,10 @@ class Plot(Weights):
         IN_SAMPLE.
         """
         idx = self.idx_in_sample
-        idx_method = np.dot(self.opt_weights, self.shares).flatten()
+        if self.shares_n == 1:
+            idx_method = self.shares
+        else:
+            idx_method = np.dot(self.opt_weights, self.shares).flatten()
 
         plt.figure(figsize=(15, 5))
         plt.plot(idx, label='Original index')
