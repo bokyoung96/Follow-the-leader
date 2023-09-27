@@ -28,16 +28,12 @@ class MethodCM(Generator, Func):
         <CONSTRUCTOR>
         in_sample, out_sample: Stock sample division for observation.
         idx_in_sample, idx_out_sample: Index sample division for observation.
-        F_rw_in_sample, F_s_in_sample: Factor in-sample for replicating index weight calculation.
         F_pca, FL_pca: Factors and factor loadings in-sample generation by PCA.
         shares_n: Used shares for replicating the original index by get_shares().
 
         <NOTIFICATION>
         To observe method using the whole data instead of in-sample data, refer to:
         https://github.com/bokyoung96/Articles/pull/3
-        Two methods exist in calculating factors:
-        1. Fixed number of factors, which are random walk and stationary.
-        2. Non-fixed number of factors, created by PCA under EV limit.
 
         <CAUTION>
         Do not confuse the factors used in generating prices and estimated factors.
@@ -52,8 +48,6 @@ class MethodCM(Generator, Func):
             self.idx)
         self.F_pca = None
         self.FL_pca = None
-        self.F_rw_in_sample = None
-        self.F_s_in_sample = None
         self.get_pca_factor_loadings()
         print("***** FACTOR LOADING COMPLETE *****")
         self.shares_n = None
@@ -100,22 +94,6 @@ class MethodCM(Generator, Func):
         factor_loadings = np.array(factor_loadings)
         self.FL_pca = factor_loadings
 
-    def stack_factors(self) -> np.ndarray:
-        """
-        <DESCRIPTION>
-        Stack random walk, stationary in-sample factors into one ndarray.
-        IN_SAMPLE.
-
-        <CAUTION>
-        Factors are fixed values from __init__ in Generator class.
-        """
-        self.F_rw_in_sample = self.func_split_factors(self.F_random_walk)
-        self.F_s_in_sample = self.func_split_factors(self.F_stationary)
-
-        factors = np.vstack((self.F_rw_in_sample,
-                            self.F_s_in_sample))
-        return factors
-
     def rank_factors(self) -> np.ndarray:
         """
         <DESCRIPTION>
@@ -123,8 +101,6 @@ class MethodCM(Generator, Func):
         IN_SAMPLE.
         """
         factors = self.F_pca
-        # FOR FIXED NUMBER OF FACTORS
-        # factors = self.stack_factors()
 
         temp = []
         for factor in factors:
