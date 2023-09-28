@@ -1,5 +1,8 @@
-import os
-import pickle
+"""
+Article: Follow the leader: Index tracking with factor models
+
+Topic: Simulation
+"""
 import itertools
 import numpy as np
 import pandas as pd
@@ -33,6 +36,10 @@ class DirFileCM(Enum):
 
 
 class DataPool:
+    """
+    <DESCRIPTION>
+    Call data directory.
+    """
     data_cm_2006 = DirFolder.CM_2006.as_dir()
     data_fl = DirFolder.FL.as_dir()
 
@@ -48,6 +55,13 @@ class DataPool:
 
 class DataLoader(DataPool):
     def __init__(self):
+        """
+        <DESCRIPTION>
+        Call data from its directory.
+
+        <CONSTRUCTOR>
+        CM_2006_IN, CM_2006_OUT: Call data directories.
+        """
         self.CM_2006_IN = self.as_cm_2006_in()
         self.CM_2006_OUT = self.as_cm_2006_out()
         message = """ 
@@ -57,6 +71,10 @@ class DataLoader(DataPool):
         print(message)
 
     def get_data_cm_2006(self, sample_type: str = 'in') -> pd.DataFrame:
+        """
+        <DESCRIPTION>
+        Get datas generated from CM-2006 method.
+        """
         if sample_type == 'in':
             return [pd.read_pickle("./{}.pkl".format(data)) for data in self.CM_2006_IN]
         elif sample_type == 'out':
@@ -64,11 +82,13 @@ class DataLoader(DataPool):
 
     @property
     def get_data(self) -> pd.DataFrame:
+        """
+        <DESCRIPTION>
+        Get whole data.
+        """
         datas = list(itertools.chain.from_iterable(self.__dict__.values()))
         return [pd.read_pickle("./{}.pkl".format(data)) for data in datas]
 
 
 if __name__ == "__main__":
     data_loader = DataLoader()
-    cm_2006 = data_loader.get_data_cm_2006(sample_type='in')
-    data = data_loader.get_data
