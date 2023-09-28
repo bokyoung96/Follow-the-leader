@@ -131,8 +131,10 @@ class Weights(MethodCM):
         """
         weights_init = np.full((1, self.shares_n), 1/self.shares_n)
 
-        # THE WEIGHTS SHOULD BE AT THE RANGE OF (0, 1)
-        # bounds = [(0, 1) for _ in range(self.shares_n)]
+        # BUY-AND-HOLD STRATEGY
+        # LINEAR MODEL IN PRICE LEVELS
+        # THE WEIGHTS SHOULD BE AT THE RANGE OF (0, None)
+        # bounds = [(0, None) for _ in range(self.shares_n)]
         if self.shares_n == 1:
             print("***** 1 STOCK INVESTED: OPTIMIZATION NOT REQUIRED *****")
             optimal_weights = weights_init
