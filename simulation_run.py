@@ -3,8 +3,8 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Simulation
 """
+import os
 import json
-import pickle
 import logging
 import requests
 import matplotlib.pyplot as plt
@@ -13,7 +13,12 @@ from abc import ABC, abstractmethod
 from simulation_weights import *
 from simulation_performance import *
 
+# LOCATE DIRECTORY
+dir_name = "./DATA_CM_2006/"
+if not os.path.exists(dir_name):
+    os.makedirs(dir_name)
 
+# LOCATE TELEGRAM API BOT
 with open('simulation_telegram_api.json', 'r') as f:
     info = json.load(f)
 
@@ -22,36 +27,71 @@ chat_id = info["chat_id"]
 
 
 class RunAbstr(ABC):
+    """
+    <DESCRIPTION>
+    Abstract method of Run for CM-2006 and FL methods.
+    """
     @property
     @abstractmethod
     def shares_out_sample(self):
+        """
+        <DESCRIPTION>
+        Extract the invested shares in out-sample under the condition of same stocks as in-sample.
+        """
         pass
 
     @property
     @abstractmethod
     def in_sample_replica_idx(self):
+        """
+        <DESCRIPTION>
+        Calculate the time-series replicated index value at in-sample.
+        """
         pass
 
     @property
     @abstractmethod
     def out_sample_replica_idx(self):
+        """
+        <DESCRIPTION>
+        Calculate the time-series replicated index value at out-sample.
+        """
         pass
 
     @property
     @abstractmethod
     def replica_idx(self):
+        """
+        <DESCRIPTION>
+        Calculate the time-series replicated index value at whole sample.
+        """
         pass
 
     @abstractmethod
     def run_simulation(self):
+        """
+        <DESCRIPTION>
+        Run simulation, appending performance measures for in-sample and out-sample.
+        Main usage of the function is for iterating process in simulation.
+        """
         pass
 
     @abstractmethod
     def run(self):
+        """
+        <DESCRIPTION>
+        Run simulation, appending performance measures for the whole sample.
+        Main usage of the function is for single process in simulation.
+        """
         pass
 
     @abstractmethod
     def plots(self):
+        """
+        <DESCRIPTION>
+        Plot original index and replicated index.
+        Main usage of the function is for single process after run().
+        """
         pass
 
 
@@ -63,6 +103,20 @@ class RunCM(RunAbstr, Weights):
                  EV: float = 0.999,
                  min_R2: float = 0.8):
         super().__init__(N, T, k, EV, min_R2)
+        """
+        <DESCRIPTION>
+        Run simulation under CM-2006 method.
+
+        <PARAMETER>
+        Same as MethodCM class.
+
+        <CONSTRUCTOR>
+        self.opt_weights, self.opt_res: Optimal results from self.optimize() in Weights class.
+        self.indiv_inv: T/F determination for whether only 1 stock is invested or not.
+        
+        <NOTIFICATION>
+        Function explanation is written in abstract method above.
+        """
         if self.shares_n == 1:
             self.opt_weights = self.optimize()
             self.opt_res = None
@@ -151,7 +205,14 @@ class RunCM(RunAbstr, Weights):
         plt.show()
 
 
-def run(iters: int = 1000, report_interval: int = 50):
+def run(iters: int = 1000, report_interval: int = 10):
+    """
+    <DESCRIPTION>
+    Run under iteration.
+    Logs will be saved with raw_attempts and attempts.
+    For each pre-defined intervals, telegram message will be sent to the API bot.
+    Data will be saved as pkl file.
+    """
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
     msres_in = []
@@ -182,6 +243,10 @@ def run(iters: int = 1000, report_interval: int = 50):
                     'text': message
                 }
                 requests.get(url, params=params)
+                pd.DataFrame(msres_in).to_pickle(
+                    "./DATA_CM_2006_999/EV999_MSRES_IN_{}.pkl".format(attempts + 1))
+                pd.DataFrame(msres_out).to_pickle(
+                    "./DATA_CM_2006_999/EV999_MSRES_OUT_{}.pkl".format(attempts + 1))
         else:
             logger.warning(
                 "RAW {} / ATTEMPT {}: FAILED".format(raw_attempts + 1, attempts + 1))
