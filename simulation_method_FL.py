@@ -3,6 +3,8 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Simulation
 """
+from factor_analyzer import FactorAnalyzer
+
 from simulation_func import *
 from simulation_generator import *
 
@@ -12,7 +14,8 @@ class MethodFL(Generator, Func):
     def __init__(self,
                  N: int = 100,
                  T: int = 1000,
-                 k: int = 5):
+                 k: int = 5,
+                 F_max: int = 30):
         super().__init__(N, T, k)
         """
         <DESCRIPTION>
@@ -26,13 +29,23 @@ class MethodFL(Generator, Func):
         idx_in_sample, idx_out_sample: Index sample division for observation.
         F_rw_in_sample, F_s_in_sample: Factor in-sample for replicating index weight calculation.
         """
-        self.in_sample, self.out_sample = self.func_split_stocks(
-            self.stock.pct_change(axis=1))
-        self.in_sample.fillna(0, inplace=True)
+        self.in_sample, self.out_sample = self.func_split_stocks(self.stock)
         self.idx_in_sample, self.idx_out_sample = self.func_split_stocks(
             self.idx)
         self.F_rw_in_sample = None
         self.F_s_in_sample = None
+        self.F_max = F_max
+
+    def get_BaiNg_factors(self):
+        fa = FactorAnalyzer(n_factors=self.F_max,
+                            method='ml',
+                            rotation=None,
+                            impute='median')
+        fa.fit(self.in_sample.T)
+
+        explained_variance_ratio = fa.get_factor_variance()[0]
+
+        return
 
     def stack_factors(self) -> np.ndarray:
         """

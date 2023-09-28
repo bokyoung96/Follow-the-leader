@@ -185,11 +185,10 @@ class MethodCM(Generator, Func):
         if len(x) == self.T / 2:
             x = pd.unique(x)
             self.shares_n = 1
-            print("\n***** NUMBER OF SHARES: {} *****\n".format(self.shares_n))
         else:
             x = np.unique(x, axis=0)
             self.shares_n = len(x)
-            print("\n***** NUMBER OF SHARES: {} *****\n".format(self.shares_n))
+        print("\n***** NUMBER OF SHARES: {} *****\n".format(self.shares_n))
         return x
 
 

@@ -60,7 +60,7 @@ class RunCM(RunAbstr, Weights):
                  N: int = 100,
                  T: int = 1000,
                  k: int = 5,
-                 EV: float = 0.99,
+                 EV: float = 0.999,
                  min_R2: float = 0.8):
         super().__init__(N, T, k, EV, min_R2)
         if self.shares_n == 1:
@@ -159,7 +159,7 @@ def run(iters: int = 1000, report_interval: int = 50):
 
     attempts = 0
     raw_attempts = 0
-    logging.basicConfig(filename='LOGGER.log',
+    logging.basicConfig(filename='LOGGER_999.log',
                         level=logging.INFO,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger("RunCM.run_simulation")
@@ -176,7 +176,7 @@ def run(iters: int = 1000, report_interval: int = 50):
             attempts += 1
 
             if (attempts + 1) % report_interval == 0:
-                message = f"ATTEMPT {attempts + 1} COMPLETED."
+                message = f"ATTEMPT {attempts + 1} COMPLETED. (0.999)"
                 params = {
                     'chat_id': chat_id,
                     'text': message
@@ -204,5 +204,5 @@ def run(iters: int = 1000, report_interval: int = 50):
 
 if __name__ == "__main__":
     msres_in, msres_out = run()
-    pd.DataFrame(msres_in).to_pickle("./EV99_MSRES_IN.pkl")
-    pd.DataFrame(msres_out).to_pickle("./EV99_MSRES_OUT.pkl")
+    pd.DataFrame(msres_in).to_pickle("./EV999_MSRES_IN.pkl")
+    pd.DataFrame(msres_out).to_pickle("./EV999_MSRES_OUT.pkl")
