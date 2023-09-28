@@ -3,26 +3,27 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Simulation
 """
+import numpy as np
 import pandas as pd
 
 from simulation_result_loader import DataLoader
 
 
 class AnalysisCM:
-    def __init__(self, T: int = 1000):
+    def __init__(self, iters: int = 1000):
         """
         <DESCRIPTION>
         Analyze the data from CM-2006 method.
 
         <PARAMETER>
-        T: Final timestamp.
+        iters: Number of simulation iteration.
 
         <CONSTRUCTOR>
         data_loader: Instance of DataLoader class to call datas.
         self.in_sample, self.out_sample: Data after simulation, classified by in and out samples.
         self.in_sample_msres, self.out_sample_msres: Final data for table 1 in the article.
         """
-        self.T = T
+        self.iters = iters
         data_loader = DataLoader()
         self.in_sample = data_loader.get_data_cm_2006(sample_type='in')
         self.out_sample = data_loader.get_data_cm_2006(sample_type='out')
@@ -64,7 +65,7 @@ class AnalysisCM:
         Calculate the mean and standard error of the performance measure from the result.
         Change its columns to value and standard error.
         """
-        res = pd.concat([df.mean(), df.std() / self.T], axis=1)
+        res = pd.concat([df.mean(), df.std() / np.sqrt(self.iters)], axis=1)
         res.columns = ['Value', 'Standard_Error']
         return res
 

@@ -3,20 +3,25 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Simulation
 """
-import os
 import json
 import logging
 import requests
 import matplotlib.pyplot as plt
+from pathlib import Path
 from abc import ABC, abstractmethod
 
 from simulation_weights import *
 from simulation_performance import *
 
+
 # LOCATE DIRECTORY
-dir_name = "./DATA_CM_2006/"
-if not os.path.exists(dir_name):
-    os.makedirs(dir_name)
+def locate_dir(dir_name):
+    path = Path(dir_name)
+    path.mkdir(parents=True, exist_ok=True)
+
+
+locate_dir("./LOGGER/")
+locate_dir("./DATA_CM_2006/")
 
 # LOCATE TELEGRAM API BOT
 with open('simulation_telegram_api.json', 'r') as f:
@@ -220,7 +225,7 @@ def run(iters: int = 1000, report_interval: int = 10):
 
     attempts = 0
     raw_attempts = 0
-    logging.basicConfig(filename='LOGGER_999.log',
+    logging.basicConfig(filename='./LOGGER/LOGGER_999.log',
                         level=logging.INFO,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger("RunCM.run_simulation")
