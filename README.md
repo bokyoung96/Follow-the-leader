@@ -1,2 +1,2 @@
-# Follow-the-leader
-Follow the leader article replication &amp; add-ons.
+# Follow-the-leader: Index tracking with factor models.
+Article replication &amp; add-ons.
