@@ -3,7 +3,7 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Simulation
 """
-from simulation_weights import *
+from simulation_weights_CM import *
 
 
 class Performance:

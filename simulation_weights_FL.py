@@ -5,17 +5,16 @@ Topic: Simulation
 """
 from scipy.optimize import minimize
 
-from simulation_method_CM import *
+from simulation_method_FL import *
 
 
-class Weights(MethodCM):
+class WeightsFL(MethodFL):
     def __init__(self,
                  N: int = 100,
                  T: int = 1000,
                  k: int = 5,
-                 EV: float = 0.99,
-                 min_R2: float = 0.8):
-        super().__init__(N, T, k, EV, min_R2)
+                 F_max: int = 30,
+                 p_val: float = 0.05):
         """
         <DESCRIPTION>
         Optimize the weight of replication index under factor spanning constraint and initial value constraint.
@@ -28,7 +27,10 @@ class Weights(MethodCM):
         shares_n: Number of selected shares in shares constructor.
         weights_idx: Weight vector for original index constituted by equal-weights.
         """
-        self.shares = self.get_shares()
+        super().__init__(N, T, k, F_max, p_val)
+        self.shares_ret = self.get_shares()
+        self.shares = np.array(
+            self.in_sample.iloc[self.get_matched_rows(), :].reset_index(drop=True))
         self.weights_idx = np.full((1, self.N), 1/self.N)
 
     def get_matched_rows(self):
@@ -38,15 +40,15 @@ class Weights(MethodCM):
         """
         rows = []
         if self.shares_n == 1:
-            matched = self.in_sample[self.in_sample.apply(
-                lambda row: np.array_equal(row, self.shares), axis=1)].index[0]
+            matched = self.in_sample_ret[self.in_sample_ret.apply(
+                lambda row: np.array_equal(row, self.shares_ret), axis=1)].index[0]
             rows.append(matched)
 
             res = np.array(rows)
         else:
-            for row in self.shares:
+            for row in self.shares_ret:
                 matched = np.where(
-                    (self.in_sample.values == row).all(axis=1))[0]
+                    (self.in_sample_ret.values == row).all(axis=1))[0]
                 rows.append(matched)
 
             res = np.concatenate(rows, axis=0)
@@ -131,9 +133,6 @@ class Weights(MethodCM):
         """
         weights_init = np.full((1, self.shares_n), 1/self.shares_n)
 
-        # BUY-AND-HOLD STRATEGY
-        # LINEAR MODEL IN PRICE LEVELS
-        # THE WEIGHTS SHOULD BE AT THE RANGE OF (0, None)
         # bounds = [(0, None) for _ in range(self.shares_n)]
         if self.shares_n == 1:
             print("***** 1 STOCK INVESTED: OPTIMIZATION NOT REQUIRED *****")
@@ -153,4 +152,4 @@ class Weights(MethodCM):
 
 
 if __name__ == "__main__":
-    weights = Weights()
+    weights = WeightsFL()
