@@ -59,9 +59,6 @@ class MethodCM(Generator, Func):
 
         <NOTIFICATION>
         self.in_sample is transposed due to its rows are composed of characteristics, known as individual stocks.
-
-        <CAUTION>
-        stack_factors will not be used under PCA method due to different factor calculating methods.
         """
         pca = PCA()
         pca.fit(self.in_sample.T)
