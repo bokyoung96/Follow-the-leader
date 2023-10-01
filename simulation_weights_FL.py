@@ -20,7 +20,7 @@ class WeightsFL(MethodFL):
         Optimize the weight of replication index under factor spanning constraint and initial value constraint.
 
         <PARAMETER>
-        Same as Generator class.
+        Same as MethodFL class.
 
         <CONSTRUCTOR>
         shares: Selected shares explaining each factors.

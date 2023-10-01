@@ -6,7 +6,6 @@ Topic: Simulation
 import itertools
 import numpy as np
 import pandas as pd
-
 from enum import Enum, unique
 
 DIR_DATA = "DATA_%s"
@@ -26,7 +25,19 @@ class DirFolder(Enum):
 class DirFileCM(Enum):
     EV90 = "EV90%s"
     EV99 = "EV99%s"
-    # EV999 = "EV999%s"
+    EV999 = "EV999%s"
+
+    def as_in(self):
+        return self.value % MSRES % "IN"
+
+    def as_out(self):
+        return self.value % MSRES % "OUT"
+
+
+@unique
+class DirFileFL(Enum):
+    FL005 = "FL0.05%s"
+    # FL001 = "FL0.01%s"
 
     def as_in(self):
         return self.value % MSRES % "IN"
@@ -46,11 +57,20 @@ class DataPool:
     in_sample_cm = [DirFileCM(member).as_in() for member in DirFileCM]
     out_sample_cm = [DirFileCM(member).as_out() for member in DirFileCM]
 
+    in_sample_fl = [DirFileFL(member).as_in() for member in DirFileFL]
+    out_sample_fl = [DirFileFL(member).as_out() for member in DirFileFL]
+
     def as_cm_2006_in(self):
         return [self.data_cm_2006 + item for item in self.in_sample_cm]
 
     def as_cm_2006_out(self):
         return [self.data_cm_2006 + item for item in self.out_sample_cm]
+
+    def as_fl_in(self):
+        return [self.data_fl + item for item in self.in_sample_fl]
+
+    def as_fl_out(self):
+        return [self.data_fl + item for item in self.out_sample_fl]
 
 
 class DataLoader(DataPool):
@@ -64,9 +84,11 @@ class DataLoader(DataPool):
         """
         self.CM_2006_IN = self.as_cm_2006_in()
         self.CM_2006_OUT = self.as_cm_2006_out()
+        self.FL_IN = self.as_fl_in()
+        self.FL_OUT = self.as_fl_out()
         message = """ 
-        NOTIFICATION: (get_data_cm_2006) CM_2006 DATA ORDERS IN EV CUTOFF 90, 99.\n\n
-        NOTIFICATION: (get_data) CM_2006 DATA ORDERS IN IN, OUT, EV CUTOFF 90, 99.
+        NOTIFICATION: (get_data_cm_2006) CM_2006 DATA ORDERS IN EV CUTOFF 90, 99, 99.9.\n\n
+        NOTIFICATION: (get_data) CM_2006 DATA ORDERS IN IN, OUT, EV CUTOFF 90, 99, 99.9.
         """
         print(message)
 
@@ -79,6 +101,16 @@ class DataLoader(DataPool):
             return [pd.read_pickle("./{}.pkl".format(data)) for data in self.CM_2006_IN]
         elif sample_type == 'out':
             return [pd.read_pickle("./{}.pkl".format(data)) for data in self.CM_2006_OUT]
+
+    def get_data_fl(self, sample_type: str = 'in') -> pd.DataFrame:
+        """
+        <DESCRIPTION>
+        Get datas generated from FL method.
+        """
+        if sample_type == 'in':
+            return [pd.read_pickle("./{}.pkl".format(self.FL_IN[0]))]
+        elif sample_type == 'out':
+            return [pd.read_pickle("./{}.pkl".format(self.FL_OUT[0]))]
 
     @property
     def get_data(self) -> pd.DataFrame:
