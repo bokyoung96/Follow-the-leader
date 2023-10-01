@@ -93,12 +93,19 @@ class RunAbstr(ABC):
         pass
 
     @abstractmethod
-    def plots(self):
-        """
-        <DESCRIPTION>
-        Plot original index and replicated index.
-        Main usage of the function is for single process after run().
-        """
+    def plot_generator_price(self):
+        pass
+
+    @abstractmethod
+    def plot_method_price_eq_w(self):
+        pass
+
+    @abstractmethod
+    def plot_method_price_opt_w(self):
+        pass
+
+    @abstractmethod
+    def plot_method_price_opt_w_error(self):
         pass
 
 
@@ -193,18 +200,70 @@ class RunCM(RunAbstr, WeightsCM):
                                                                 'MSE'])
         return res
 
-    def plots(self):
+    def plot_generator_price(self) -> plt.plot:
+        plt.figure(figsize=(15, 5))
+        plt.plot(self.stock.T)
+        plt.plot(self.idx, color='k', linewidth=5, label='EQIDX')
+
+        plt.title("Generated stock prices under Random walk and Stationary factors")
+        plt.xlabel("Time")
+        plt.ylabel("Price")
+        plt.legend(loc='best')
+
+        plt.show()
+
+    def plot_method_price_eq_w(self):
+        idx = self.idx_in_sample
+        idx_method_in = self.shares.mean(axis=0)
+        idx_method_out = self.shares_out_sample.mean(axis=0)
+        idx_method = np.hstack((idx_method_in, idx_method_out))
+
+        plt.figure(figsize=(15, 5))
+        plt.plot(idx, color='k', label='EQIDX', linewidth=3)
+        plt.plot(idx_method, color='r', label='REPIDX')
+        plt.axvline(x=500, color='blue', linestyle='--',
+                    label='In & Out sample division')
+
+        plt.title(
+            'EQIDX versus REPIDX in equal weights under Follow-the-leader method')
+        plt.xlabel("Time")
+        plt.ylabel("Price")
+        plt.legend(loc='best')
+
+        plt.show()
+
+    def plot_method_price_opt_w(self):
         idx = self.idx
         idx_method = self.replica_idx.flatten()
 
         plt.figure(figsize=(15, 5))
-        plt.plot(idx, label='Original index')
-        plt.plot(idx_method, label='Replicated index')
-        plt.axvline(x=500, color='red', linestyle='--',
+        plt.plot(idx, color='k', label='EQIDX', linewidth=3)
+        plt.plot(idx_method, color='r', label='REPIDX')
+        plt.axvline(x=500, color='blue', linestyle='--',
                     label='In & Out sample division')
 
         plt.title(
-            'Original index versus Replicated index in optimial weights under PCA EV cutoff {}'.format(self.EV))
+            'EQIDX versus REPIDX in optimal weights under Follow-the-leader method')
+        plt.xlabel('Time')
+        plt.ylabel('Price')
+        plt.legend(loc='best')
+
+        plt.show()
+
+    def plot_method_price_opt_w_error(self):
+        idx = self.idx
+        idx_method = self.replica_idx.flatten()
+        error = idx - idx_method
+        plt.figure(figsize=(15, 3))
+        plt.plot(error, color='k', label='ERROR')
+        plt.axvline(x=500, color='blue', linestyle='--',
+                    label='In & Out sample division')
+        plt.axhline(y=1, color='r', linestyle='--', alpha=0.5)
+        plt.axhline(y=-1, color='r', linestyle='--', alpha=0.5)
+        plt.axhline(y=error.mean(), color='r',
+                    linestyle='--', label='mean(ERROR)')
+
+        plt.title('Spread between EQIDX and REPIDX')
         plt.xlabel('Time')
         plt.ylabel('Price')
         plt.legend(loc='best')
@@ -303,18 +362,70 @@ class RunFL(RunAbstr, WeightsFL):
                                                                 'MSE'])
         return res
 
-    def plots(self):
+    def plot_generator_price(self) -> plt.plot:
+        plt.figure(figsize=(15, 5))
+        plt.plot(self.stock.T)
+        plt.plot(self.idx, color='k', linewidth=5, label='EQIDX')
+
+        plt.title("Generated stock prices under Random walk and Stationary factors")
+        plt.xlabel("Time")
+        plt.ylabel("Price")
+        plt.legend(loc='best')
+
+        plt.show()
+
+    def plot_method_price_eq_w(self):
+        idx = self.idx
+        idx_method_in = self.shares.mean(axis=0)
+        idx_method_out = self.shares_out_sample.mean(axis=0)
+        idx_method = np.hstack((idx_method_in, idx_method_out))
+
+        plt.figure(figsize=(15, 5))
+        plt.plot(idx, color='k', label='EQIDX', linewidth=3)
+        plt.plot(idx_method, color='r', label='REPIDX')
+        plt.axvline(x=500, color='blue', linestyle='--',
+                    label='In & Out sample division')
+
+        plt.title(
+            'EQIDX versus REPIDX in equal weights under Follow-the-leader method')
+        plt.xlabel("Time")
+        plt.ylabel("Price")
+        plt.legend(loc='best')
+
+        plt.show()
+
+    def plot_method_price_opt_w(self):
         idx = self.idx
         idx_method = self.replica_idx.flatten()
 
         plt.figure(figsize=(15, 5))
-        plt.plot(idx, label='Original index')
-        plt.plot(idx_method, label='Replicated index')
-        plt.axvline(x=500, color='red', linestyle='--',
+        plt.plot(idx, color='k', label='EQIDX', linewidth=3)
+        plt.plot(idx_method, color='r', label='REPIDX')
+        plt.axvline(x=500, color='blue', linestyle='--',
                     label='In & Out sample division')
 
         plt.title(
-            'Original index versus Replicated index in optimial weights under FL, p_val {}'.format(self.p_val))
+            'EQIDX versus REPIDX in optimal weights under Follow-the-leader method')
+        plt.xlabel('Time')
+        plt.ylabel('Price')
+        plt.legend(loc='best')
+
+        plt.show()
+
+    def plot_method_price_opt_w_error(self):
+        idx = self.idx
+        idx_method = self.replica_idx.flatten()
+        error = idx - idx_method
+        plt.figure(figsize=(15, 3))
+        plt.plot(error, color='k', label='ERROR')
+        plt.axvline(x=500, color='blue', linestyle='--',
+                    label='In & Out sample division')
+        plt.axhline(y=1, color='r', linestyle='--', alpha=0.5)
+        plt.axhline(y=-1, color='r', linestyle='--', alpha=0.5)
+        plt.axhline(y=error.mean(), color='r',
+                    linestyle='--', label='mean(ERROR)')
+
+        plt.title('Spread between EQIDX and REPIDX')
         plt.xlabel('Time')
         plt.ylabel('Price')
         plt.legend(loc='best')
@@ -368,6 +479,10 @@ def run(iters: int = 1000,
                     'text': message
                 }
                 requests.get(url, params=params)
+                pd.DataFrame(msres_in).to_pickle(
+                    "./DATA_FL/FL0.05_MRSES_IN_{}.pkl".format(attempts+1))
+                pd.DataFrame(msres_out).to_pickle(
+                    "./DATA_FL/FL0.05_MRSES_OUT_{}.pkl".format(attempts+1))
 
         else:
             logger.warning(
@@ -375,7 +490,7 @@ def run(iters: int = 1000,
             raw_attempts += 1
             continue
 
-    with open('{}.log', 'r') as f_log:
+    with open('./LOGGER/{}.log', 'r') as f_log:
         log_contents = f_log.read()
 
     message = "LOGS: \n\n\n" + log_contents
@@ -390,10 +505,20 @@ def run(iters: int = 1000,
 
 
 if __name__ == "__main__":
-    msres_in, msres_out = run(iters=1000,
-                              report_interval=25,
-                              log_file_name='LOGGER_0.05',
-                              simulation_name='RunFL'
-                              )
-    pd.DataFrame(msres_in).to_pickle("./DATA_FL/FL0.05_MSRES_IN.pkl")
-    pd.DataFrame(msres_out).to_pickle("./DATA_FL/FL0.05_MSRES_OUT.pkl")
+    # FOR ITERATING RUN PROCESS
+    # msres_in, msres_out = run(iters=500,
+    #                           report_interval=25,
+    #                           log_file_name='LOGGER_0.05',
+    #                           simulation_name='RunFL'
+    #                           )
+    # pd.DataFrame(msres_in).to_pickle("./DATA_FL/FL0.05_MSRES_IN.pkl")
+    # pd.DataFrame(msres_out).to_pickle("./DATA_FL/FL0.05_MSRES_OUT.pkl")
+
+    # FOR ONE-TIME RUN
+    runfl = RunFL()
+
+    print(runfl.run())
+    runfl.plot_generator_price()
+    runfl.plot_method_price_eq_w()
+    runfl.plot_method_price_opt_w()
+    runfl.plot_method_price_opt_w_error()

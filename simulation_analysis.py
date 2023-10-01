@@ -6,17 +6,18 @@ Topic: Simulation
 import numpy as np
 import pandas as pd
 
-from simulation_result_loader import DataLoader
+from simulation_loader import DataLoader
 
 
-class AnalysisCM:
-    def __init__(self, iters: int = 1000):
+class Analysis:
+    def __init__(self, iters: int = 1000, method_type: str = 'FL'):
         """
         <DESCRIPTION>
         Analyze the data from CM-2006 method.
 
         <PARAMETER>
         iters: Number of simulation iteration.
+        method_type: Type of method used.
 
         <CONSTRUCTOR>
         data_loader: Instance of DataLoader class to call datas.
@@ -24,9 +25,18 @@ class AnalysisCM:
         self.in_sample_msres, self.out_sample_msres: Final data for table 1 in the article.
         """
         self.iters = iters
+        self.method_type = method_type
         data_loader = DataLoader()
-        self.in_sample = data_loader.get_data_cm_2006(sample_type='in')
-        self.out_sample = data_loader.get_data_cm_2006(sample_type='out')
+
+        if self.method_type == 'CM':
+            self.in_sample = data_loader.get_data_cm_2006(sample_type='in')
+            self.out_sample = data_loader.get_data_cm_2006(sample_type='out')
+        elif self.method_type == 'FL':
+            self.in_sample = data_loader.get_data_fl(sample_type='in')
+            self.out_sample = data_loader.get_data_fl(sample_type='out')
+        else:
+            raise AssertionError("ERROR: Select between [CM, FL].")
+
         self.chg_cols()
 
         self.in_sample_msres = None
@@ -85,4 +95,4 @@ class AnalysisCM:
 
 
 if __name__ == "__main__":
-    analysis = AnalysisCM()
+    analysis = Analysis()
