@@ -8,7 +8,7 @@ import pickle
 import pandas as pd
 
 
-def pkl_merge(path: str, file_name: str):
+def pkl_merge(path: str, file_name: str, keyword: str = 'matched'):
     """
     <DESCRIPTION>
     Merge pickle files into one pickle file.
@@ -17,7 +17,7 @@ def pkl_merge(path: str, file_name: str):
     merged_data = pd.DataFrame()
 
     for filename in os.listdir(directory_path):
-        if filename.endswith('.pkl'):
+        if filename.endswith('.pkl') and keyword in filename:
             file_path = os.path.join(directory_path, filename)
 
             data = pd.read_pickle(file_path)
