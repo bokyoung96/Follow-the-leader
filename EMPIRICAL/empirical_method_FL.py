@@ -132,18 +132,20 @@ class EmMethodFL(Func):
             model = self.func_regression(factor.T, shares.T)
             resid = model.resid
 
-            # F_nums, ic = self.func_bai_ng(
-            #     resid, ic_method=2, max_factor=self.F_max)
+            F_nums, ic = self.func_bai_ng(
+                resid, ic_method=2, max_factor=self.F_max)
 
-            pca = stPCA(data=resid, ncomp=self.F_max,
-                        standardize=False)
-            F_nums = np.argmin(pca.ic['IC_p2'])
+            # pca = stPCA(data=resid, ncomp=self.F_max,
+            #             standardize=False)
+            # F_nums = np.argmin(pca.ic['IC_p2'])
 
             if F_nums == 0:
                 break
             else:
+                # print("FACTOR LEFT: {}! IC: {} -> MOVING ON...".format(F_nums,
+                #       pca.ic['IC_p2'][F_nums]))
                 print("FACTOR LEFT: {}! IC: {} -> MOVING ON...".format(F_nums,
-                      pca.ic['IC_p2'][F_nums]))
+                      ic))
                 if count == 1:
                     const_reg = 0
                 else:
@@ -159,7 +161,7 @@ class EmMethodFL(Func):
                     temp_corr.append(corr)
 
                 rank = self.func_rank(temp_corr)
-                if len(rank) >= 100:
+                if len(rank) >= 50:
                     share_add = shares_adj.values[np.argsort(rank)][0]
                     leaders = np.vstack((leaders, share_add))
 
@@ -195,7 +197,7 @@ class EmMethodFL(Func):
                 resid = model.resid
                 model_resid = self.func_regression(factors_init.T, resid)
 
-                if all(model_resid.pvalues > 0.01):
+                if all(model_resid.pvalues > 0.1):
                     temp.append(True)
                 else:
                     temp.append(False)
@@ -271,12 +273,12 @@ class EmMethodFL(Func):
             count += 1
             res.append(leaders)
 
-        x = np.unique(np.vstack(res), axis=0)
+        leaders = np.unique(np.vstack(res), axis=0)
 
         print("\n*****PROGRESS FINISHED*****\n")
-        self.shares_n = len(x)
+        self.shares_n = len(leaders)
         print("\n***** NUMBER OF SHARES: {} *****\n".format(self.shares_n))
-        return x
+        return leaders
 
     def fast_plot(self) -> plt.plot:
         """
@@ -297,7 +299,7 @@ class EmMethodFL(Func):
 
 if __name__ == "__main__":
     data_loader = DataLoader(mkt='KOSPI200', date='Y3')
-    idx, stocks = data_loader.as_empirical(idx_weight='EQ')
+    idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     method = EmMethodFL(idx, stocks)
     method.fast_plot()

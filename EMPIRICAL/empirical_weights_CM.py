@@ -5,41 +5,41 @@ Topic: Empirical Analysis
 """
 from scipy.optimize import minimize
 
-from empirical_method_FL import *
+from empirical_method_CM import *
 
 
-class EmWeightsFL(EmMethodFL):
+class EmWeightsCM(EmMethodCM):
     def __init__(self,
                  idx: pd.DataFrame,
                  stocks: pd.Series,
-                 F_max: int = 30,
-                 EV: float = 0.95):
+                 EV: float = 0.99,
+                 min_R2: float = 0.8):
         """
         <DESCRIPTION>
         Optimize the weight of replication index under factor spanning constraint and initial value constraint.
 
         <PARAMETER>
-        Same as EmMethodFL class.
+        Same as EmMethodCM class.
 
         <CONSTRUCTOR>
-        leaders: Selected shares' returns explaining each factors.
+        leaders, leaders_ret: Selected shares and its returns explaining each factors.
         N: Number of constituents in the index.
         weights_idx: Weight vector for original index constituted by equal-weights.
         """
-        super().__init__(idx, stocks, F_max, EV)
-        self.leaders = self.get_shares()
+        super().__init__(idx, stocks, EV, min_R2)
+        self.leaders, self.leaders_ret = self.get_matched_returns()
         self.leaders_shares = np.array(
             self.stocks.T.iloc[self.get_matched_rows(), :].reset_index(drop=True)).astype(np.float64)
         self.N = len(self.stocks.T)
         self.weights_idx = np.full((1, self.N), 1/self.N)
 
-    def get_matched_rows(self):
+    def get_matched_rows(self) -> np.ndarray:
         """
         <DESCRIPTION>
         Get the row number of shares explaining each factors.
         """
         rows = []
-        for row in self.leaders:
+        for row in self.leaders_ret:
             matched = np.where(
                 (self.stocks_ret.T.values == row).all(axis=1))[0]
             rows.append(matched)
@@ -67,7 +67,8 @@ class EmWeightsFL(EmMethodFL):
         <DESCRIPTION>
         Get the replicated index term in initial value constraint.
         """
-        init_leaders = pd.DataFrame(self.leaders.cumsum(axis=1)).values[:, -1]
+        init_leaders = pd.DataFrame(
+            self.leaders_ret.cumsum(axis=1)).values[:, -1]
         # NOTE: PRICE
         # init_leaders = self.leaders_shares[:, -1]
         return np.dot(x, init_leaders)
@@ -108,7 +109,7 @@ class EmWeightsFL(EmMethodFL):
         """
         x = x.reshape((1, -1))
 
-        replica_idx = pd.DataFrame(np.dot(x, self.leaders)).cumsum().values
+        replica_idx = pd.DataFrame(np.dot(x, self.leaders_ret)).cumsum().values
         origin_idx = pd.DataFrame(
             np.dot(self.weights_idx, self.stocks_ret.T)).cumsum().values
 
@@ -149,7 +150,7 @@ class EmWeightsFL(EmMethodFL):
                               weights_init,
                               method='SLSQP',
                               constraints=consts,
-                              #   bounds=bounds,
+                              # bounds=bounds,
                               options={'maxiter': 1000})
 
             optimal_weights = result.x.reshape((1, -1))
@@ -161,7 +162,8 @@ class EmWeightsFL(EmMethodFL):
         Fast equal weight replica and origin plotting.
         """
         opt_weights, res = self.optimize()
-        replica = pd.DataFrame(np.dot(opt_weights, self.leaders)).T.cumsum()
+        replica = pd.DataFrame(
+            np.dot(opt_weights, self.leaders_ret)).T.cumsum()
         origin = self.idx_ret.cumsum()
         # origin = self.stocks_ret.mean(axis=1).cumsum()
         replica.index = origin.index
@@ -175,8 +177,8 @@ class EmWeightsFL(EmMethodFL):
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y1')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y3')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
-    weights = EmWeightsFL(idx, stocks)
+    weights = EmWeightsCM(idx, stocks)
     opt_weights, res = weights.fast_plot()

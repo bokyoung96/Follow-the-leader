@@ -4,9 +4,11 @@ Article: Follow the leader: Index tracking with factor models
 Topic: Empirical Analysis
 """
 import os
+import datetime
+import itertools
 from pathlib import Path
 
-from empirical_weights_FL import *
+from empirical_weights_CM import *
 
 
 # LOCATE DIRECTORY
@@ -16,17 +18,22 @@ def locate_dir(dir_name):
 
 
 # FREQUENCY (IN, OUT)
-freq_1 = 375
-freq_2 = 20
+freq_1 = 125
+freq_2 = 5
+date = datetime.date.today()
+ev = 0.99
 
-# RUNNER_{freq_1}__{freq_2}_RUNDATE
-dir_global = "RUNNER_{}_{}_1021".format(freq_1, freq_2)
-locate_dir("./{}/".format(dir_global))
+
+# RUNNER_{freq_1}__{freq_2}_{date}_{ev}
+dir_global = "RUNNER_CM_{}_{}_{}_ev_{}".format(
+    freq_1, freq_2, date, ev)
+# locate_dir("./{}/".format(dir_global))
+# locate_dir("RUNNER_GRAPHS_CM")
 
 
 class DataSplit:
     def __init__(self, mkt: str = 'KOSPI200',
-                 date: str = 'Y3',
+                 date: str = 'Y5',
                  idx_weight: str = 'EQ'):
         """
         <DESCRIPTION>
@@ -68,10 +75,10 @@ class DataSplit:
         return res
 
 
-class MethodRunner:
+class MethodRunnerCM(Func):
     def __init__(self,
-                 F_max: int = 30,
-                 EV: float = 0.9,
+                 EV: float = 0.99,
+                 min_R2: float = 0.8,
                  mkt: str = 'KOSPI200',
                  date: str = 'Y3',
                  idx_weight: str = 'EQ'
@@ -81,13 +88,14 @@ class MethodRunner:
         Run from leader stock selection to weight optimization.
 
         <PARAMETER>
-        Same as EmMethodFL and DataLoader.
+        Same as EmMethodCM and DataLoader.
 
         <CONSTRUCTOR>
         Same as DataSplit.
         """
-        self.F_max = F_max
+        super().__init__()
         self.EV = EV
+        self.min_R2 = min_R2
         self.mkt = mkt
         self.date = date
         self.idx_weight = idx_weight
@@ -99,6 +107,10 @@ class MethodRunner:
                                     self.idx_weight)
         self.splits = self.data_split.data_split()
 
+        self.consts = pd.read_pickle(
+            f"./{self.mkt}_CONST/{self.mkt}_CONST_{self.date}_PIVOT.pkl")
+        print("CONSTITUENTS LOADED. MOVING ON...")
+
     @time_spent_decorator
     def runner(self):
         """
@@ -108,21 +120,34 @@ class MethodRunner:
         res = []
         count = 0
         shares_count = []
+        F_nums_count = []
         success_count = 0
         sample_division = -freq_2
         for stocks in self.splits:
+            # NOTE: Drop process executed in runner.
+            consts = self.consts.loc[stocks.index[-1]]
+            stocks = stocks.loc[:, stocks.columns.isin(
+                consts[consts == 1].index)]
+            stocks = stocks.dropna(how='any', axis=1)
+            for col in stocks.columns:
+                if stocks[col].nunique() == 1:
+                    stocks = stocks.drop(col, axis=1)
+            print("PREPROCESS DONE. MOVING ON...")
+
             in_sample = stocks.iloc[:sample_division]
             out_sample_ret = stocks.pct_change().iloc[sample_division-1:-1]
+
+            in_sample_idx = self.data_split.idx[in_sample.index]
 
             if stocks.shape[0] < self.years + self.months - 1:
                 print("ITERATION LIMIT REACHED. FINISHING...")
                 break
 
             while True:
-                weights = EmWeightsFL(idx=self.data_split.idx,
+                weights = EmWeightsCM(idx=in_sample_idx,
                                       stocks=in_sample,
-                                      F_max=self.F_max,
-                                      EV=self.EV)
+                                      EV=self.EV,
+                                      min_R2=self.min_R2)
 
                 opt_weights, opt_res = weights.optimize()
                 if opt_res.success:
@@ -141,6 +166,7 @@ class MethodRunner:
 
             res.append(out_sample_res)
             shares_count.append(weights.shares_n)
+            F_nums_count.append(weights.F_nums)
 
             count += 1
             print("ATTEMPT {} OF {} COMPLETED. MOVING ON...".format(
@@ -152,27 +178,40 @@ class MethodRunner:
 
         pd.DataFrame(shares_count).to_pickle(
             "./{}/shares_count_{}.pkl".format(dir_global, self.date))
+        pd.DataFrame(F_nums_count).to_pickle(
+            "./{}/F_nums_count_{}.pkl".format(dir_global, self.date))
         res_df = pd.DataFrame(np.concatenate(np.hstack(arr for arr in res)))
         res_df.to_pickle(
             "./{}/replica_{}.pkl".format(dir_global, self.date))
         return res_df, shares_count
 
-    def runner_plot(self) -> plt.plot:
+    def runner_plot(self, init_price: int = 100) -> plt.plot:
         """
         <DESCRIPTION>
         Plot out-sample results.
         """
         replica = pd.read_pickle(
-            "./{}/replica_{}.pkl".format(dir_global, self.date)).cumsum()
-        method = EmMethodFL(self.data_split.idx, DataSplit(
-            self.mkt, self.date, self.idx_weight).stocks)
-        original = method.stocks_ret.mean(
-            axis=1)[freq_1:freq_1 + len(replica)].cumsum()
+            "./{}/replica_{}.pkl".format(dir_global, self.date))
+        # method = EmMethodCM(self.data_split.idx, DataSplit(
+        #     self.mkt, self.date, self.idx_weight).stocks)
+        idx_ret = DataSplit(self.mkt, self.date,
+                            self.idx_weight).idx.pct_change()
+        original = idx_ret[freq_1-1:freq_1 + len(replica)-1]
+        # NOTE: Original index created by constituents.
+        # original = method.stocks_ret.mean(
+        #     axis=1)[freq_1-1:freq_1 + len(replica)-1]
+
+        replica = self.func_plot_init_price(replica, init_price).cumsum()
+        original = self.func_plot_init_price(original, init_price).cumsum()
+        original.rename(
+            index={0: original.index[1] - pd.DateOffset(days=1)}, inplace=True)
 
         shares_count = pd.read_pickle(
             "./{}/shares_count_{}.pkl".format(dir_global, self.date))
         shares_count = pd.DataFrame(np.concatenate(
             [item for item in shares_count.values for _ in range(freq_2)]))
+        shares_count = self.func_plot_init_price(shares_count, np.nan)
+        shares_count_mean = int(shares_count[1:].mean().values)
 
         replica.index = original.index
         shares_count.index = original.index
@@ -181,7 +220,7 @@ class MethodRunner:
         slope_change_idx = shares_count_diff.index[shares_count_diff[0] != 0]
         markevery = [shares_count.index.get_loc(i) for i in slope_change_idx]
 
-        fig, ax1 = plt.subplots(figsize=(15, 5))
+        fig, ax1 = plt.subplots(figsize=(25, 10))
         plt.title('REPLICA VERSUS ORIGINAL: {}, {}, {}'.format(
             self.date, freq_1, freq_2))
 
@@ -196,19 +235,43 @@ class MethodRunner:
                  color='b', linewidth=1.5, linestyle='--',
                  marker='o', markevery=markevery)
         ax2.set_ylabel('Number of shares')
-        ax2.legend(loc='best')
+        ax2.set_ylim(0, 200)
+        ax2.axhline(shares_count_mean, color='g',
+                    linestyle='--', label='MEAN SHARES COUNT: {}'.format(shares_count_mean))
+        ax2.legend(loc='lower right')
 
-        # for i, index in enumerate(markevery):
+        # for i, index in enumerate(markevery[1:]):
         #     value = shares_count.iloc[index][0]
-        #     ax2.annotate(str(value), (index, value), textcoords="offset points", xytext=(
-        #         0, 10), ha='left', fontsize=8, color='black')
-        plt.show()
+        #     index_date = shares_count.index[index]
+        #     ax2.annotate(f"{int(value)}",
+        #                  (index_date, value),
+        #                  textcoords="offset points",
+        #                  xytext=(0, -20),
+        #                  ha='center',
+        #                  fontsize=10,
+        #                  color='black',
+        #                  rotation=45)
+        plt.savefig(
+            './RUNNER_GRAPHS_CM/{}.jpg'.format(dir_global), format='jpeg')
+        # plt.show()
 
 
 if __name__ == "__main__":
-    runner = MethodRunner(date='Y3')
-    if os.path.exists('./{}/'.format(dir_global)):
+    freq_1s = [125, 250, 375]
+    freq_2s = [5, 10, 15, 20]
+    for val_1, val_2 in itertools.product(freq_1s, freq_2s):
+        freq_1 = val_1
+        freq_2 = val_2
+        dir_global = "RUNNER_CM_{}_{}_{}_ev_{}".format(
+            freq_1, freq_2, date, ev)
+        locate_dir("./{}/".format(dir_global))
+
+        runner = MethodRunnerCM(date='Y5')
+        if os.path.exists('./{}/'.format(dir_global)):
+            res_df, shares_count = runner.runner()
+            runner.runner_plot(init_price=100)
+            print("DONE. MOVING ON...")
+
+        # runner = MethodRunnerCM(date='Y5')
         # res_df, shares_count = runner.runner()
-        pass
-    if os.path.exists('./{}/replica_{}.pkl'.format(dir_global, runner.date)):
-        runner.runner_plot()
+        # runner.runner_plot(init_price=100)
