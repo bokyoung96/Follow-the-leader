@@ -3,8 +3,6 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Empirical Analysis
 """
-import os
-import time
 import numpy as np
 import pandas as pd
 from enum import Enum, unique, auto
@@ -30,6 +28,7 @@ class DirDate(Enum):
     Y3 = auto()
     Y5 = auto()
     Y10 = auto()
+    Y20 = auto()
     WHOLE = auto()
 
 
@@ -58,15 +57,15 @@ class DataLoader:
         self.file_name = f"./{mkt_value}{DIR_DATA}{date_value}.xlsx"
         self.sheet_name = ["IDX", "CURRENT", "ALL"]
 
-    def get_raw_data(self, sheet_name: str = 'IDX') -> dict:
+    def get_raw_data(self, sheet_name: str = 'IDX') -> pd.DataFrame:
         """
         <DESCRIPTION>
         Load price data under sheet_name. (IDX, CURRENT, ALL)
         """
-        return pd.read_excel(self.file_name, sheet_name=sheet_name, header=9).iloc[4:, :]
+        return pd.read_excel(self.file_name, sheet_name=sheet_name, header=8).iloc[5:, :]
 
     @property
-    def get_data(self):
+    def get_data(self) -> list:
         """
         <DESCRIPTION>
         Preprocess price datas.
@@ -75,8 +74,9 @@ class DataLoader:
         for item in self.sheet_name:
             data = self.get_raw_data(sheet_name=item)
 
-            data.dropna(how='any', axis=1, inplace=True)
-            data = data.rename(columns={'Symbol Name': 'Date'})
+            # NOTE: Drop process will be in runner due to avoid bias.
+            # data.dropna(how='any', axis=1, inplace=True)
+            data = data.rename(columns={'Symbol': 'Date'})
             data['Date'] = pd.to_datetime(data['Date'])
             data.set_index('Date', inplace=True)
 
@@ -84,10 +84,42 @@ class DataLoader:
         return datas
 
     @time_spent_decorator
-    def as_empirical(self, idx_weight: str = "N"):
+    def as_empirical(self, idx_weight: str = "N") -> pd.DataFrame:
         """
         <DESCRIPTION>
         Load price data adjusting weighting scheme for index.
+
+        <NOTIFICATION>
+        Check NOTE to determine constituent data.
+        1: CURRENT
+        2: ALL
+        """
+        datas = self.get_data
+
+        if idx_weight == "EQ":
+            self.idx_name = f"{self.idx_name}_EQ"
+        else:
+            pass
+
+        idx = datas[0][self.idx_name].astype(np.float64)
+        # NOTE: UPLOAD <2: ALL> FOR BIAS AVOIDING
+        stocks = datas[2]
+        # NOTE: Drop process will be in runner due to avoid bias.
+        # for col in stocks.columns:
+        #     if stocks[col].nunique() == 1:
+        #         stocks = stocks.drop(col, axis=1)
+
+        print("DATA LOADED. IDX WEIGHTS ARE: {}\n".format(idx_weight))
+        return idx, stocks
+
+    @time_spent_decorator
+    def fast_as_empirical(self, idx_weight: str = "N") -> pd.DataFrame:
+        """
+        <DESCRIPTION>
+        Load price data adjusting weighting scheme for index.
+
+        <NOTIFICATION>
+        Fast version. Bias not considered.
         """
         datas = self.get_data
 
@@ -98,6 +130,7 @@ class DataLoader:
 
         idx = datas[0][self.idx_name].astype(np.float64)
         stocks = datas[1]
+        stocks = stocks.dropna(how='any', axis=1)
         for col in stocks.columns:
             if stocks[col].nunique() == 1:
                 stocks = stocks.drop(col, axis=1)
@@ -107,5 +140,5 @@ class DataLoader:
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y1')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y3')
     idx, stocks = data_loader.as_empirical(idx_weight='EQ')

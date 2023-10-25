@@ -109,3 +109,11 @@ class Func:
             resid_matrix - np.diag(np.diagonal(resid_matrix)))
         is_diag = np.all(non_diag_elements < tolerance)
         return is_diag
+
+    @staticmethod
+    def func_plot_init_price(df: pd.DataFrame, init_price: int) -> pd.DataFrame:
+        """
+        <DESCRIPTION>
+        Add initial price when plotting.
+        """
+        return pd.concat([pd.Series(init_price), df])

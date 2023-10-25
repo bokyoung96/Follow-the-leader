@@ -1,0 +1,275 @@
+"""
+Article: Follow the leader: Index tracking with factor models
+
+Topic: Empirical Analysis
+"""
+import os
+import datetime
+import itertools
+from pathlib import Path
+
+from empirical_weights_FL import *
+
+
+# LOCATE DIRECTORY
+def locate_dir(dir_name):
+    path = Path(dir_name)
+    path.mkdir(parents=True, exist_ok=True)
+
+
+# FREQUENCY (IN, OUT)
+freq_1 = 125
+freq_2 = 5
+date = datetime.date.today()
+p_val = 0.1
+
+
+# RUNNER_{freq_1}__{freq_2}_{date}_{p_val}
+dir_global = "RUNNER_FL_{}_{}_{}_p_val_{}".format(
+    freq_1, freq_2, date, p_val)
+# locate_dir("./{}/".format(dir_global))
+# locate_dir("RUNNER_GRAPHS_FL")
+
+
+class DataSplit:
+    def __init__(self, mkt: str = 'KOSPI200',
+                 date: str = 'Y5',
+                 idx_weight: str = 'EQ'):
+        """
+        <DESCRIPTION>
+        Split datas for in-sample and out-sample tests.
+
+        <PARAMETER>
+        mkt: Market specified for data.
+        date: Date specified for data.
+        idx_weight: Index weight specified for data.
+
+        <CONSTRUCTOR>
+        idx, stocks: Index and stock data.
+        months: Month frequency by global var freq_2.
+        years: Year frequency by global var freq_1.
+        """
+        self.data_loader = DataLoader(mkt, date)
+        self.idx, self.stocks = self.data_loader.as_empirical(
+            idx_weight=idx_weight)
+        self.months = freq_2
+        self.years = freq_1
+
+    def data_split(self):
+        """
+        <DESCRIPTION>
+        Split datas into in-sample + out-sample.
+        """
+        res = []
+        start = 0
+
+        rows = len(self.stocks)
+        while start < rows:
+            end = start + self.years + self.months
+
+            if end > rows:
+                end = rows
+            temp = self.stocks.iloc[start:end]
+            res.append(temp)
+            start = start + self.months
+        print("SPLIT COMPLETED. MOVING ON...")
+        return res
+
+
+class MethodRunnerFL(Func):
+    def __init__(self,
+                 F_max: int = 30,
+                 EV: float = 0.9,
+                 mkt: str = 'KOSPI200',
+                 date: str = 'Y5',
+                 idx_weight: str = 'EQ'
+                 ):
+        """
+        <DESCRIPTION<
+        Run from leader stock selection to weight optimization.
+
+        <PARAMETER>
+        Same as EmMethodFL and DataLoader.
+
+        <CONSTRUCTOR>
+        Same as DataSplit.
+        """
+        super().__init__()
+        self.F_max = F_max
+        self.EV = EV
+        self.mkt = mkt
+        self.date = date
+        self.idx_weight = idx_weight
+        self.months = freq_2
+        self.years = freq_1
+
+        self.data_split = DataSplit(self.mkt,
+                                    self.date,
+                                    self.idx_weight)
+        self.splits = self.data_split.data_split()
+
+        self.consts = pd.read_pickle(
+            f"./{self.mkt}_CONST/{self.mkt}_CONST_{self.date}_PIVOT.pkl")
+        print("CONSTITUENTS LOADED. MOVING ON...")
+
+    @time_spent_decorator
+    def runner(self):
+        """
+        <DESCRIPTION>
+        Select leader stocks and optimize its weights under in-sample and apply into out-sample.
+        """
+        res = []
+        count = 0
+        shares_count = []
+        F_nums_count = []
+        success_count = 0
+        sample_division = -freq_2
+        for stocks in self.splits:
+            # NOTE: Drop process executed in runner.
+            consts = self.consts.loc[stocks.index[-1]]
+            stocks = stocks.loc[:, stocks.columns.isin(
+                consts[consts == 1].index)]
+            stocks = stocks.dropna(how='any', axis=1)
+            for col in stocks.columns:
+                if stocks[col].nunique() == 1:
+                    stocks = stocks.drop(col, axis=1)
+            print("PREPROCESS DONE. MOVING ON...")
+
+            in_sample = stocks.iloc[:sample_division]
+            out_sample_ret = stocks.pct_change().iloc[sample_division-1:-1]
+
+            in_sample_idx = self.data_split.idx[in_sample.index]
+
+            if stocks.shape[0] < self.years + self.months - 1:
+                print("ITERATION LIMIT REACHED. FINISHING...")
+                break
+
+            while True:
+                weights = EmWeightsFL(idx=in_sample_idx,
+                                      stocks=in_sample,
+                                      F_max=self.F_max,
+                                      EV=self.EV)
+
+                opt_weights, opt_res = weights.optimize()
+                if opt_res.success:
+                    print("\n***** OPTIMIZATION SUCCESS *****\n")
+                    success_count += 1
+                    break
+                else:
+                    print("\n***** OPTIMIZATION FAILED *****\n")
+                    opt_weights = np.full(
+                        (1, weights.shares_n), weights.shares_n)
+                    break
+
+            leaders_out_sample = np.array(
+                out_sample_ret.T.iloc[weights.get_matched_rows(), :])
+            out_sample_res = np.dot(opt_weights, leaders_out_sample)
+
+            res.append(out_sample_res)
+            shares_count.append(weights.shares_n)
+            F_nums_count.append(weights.F_nums)
+
+            count += 1
+            print("ATTEMPT {} OF {} COMPLETED. MOVING ON...".format(
+                count, len(self.splits)))
+            pd.DataFrame(out_sample_res).to_pickle(
+                "./{}/replica_{}_{}.pkl".format(dir_global, count, self.date))
+            pd.DataFrame(weights.get_matched_rows()).to_pickle(
+                "./{}/replica_matched_{}_{}.pkl".format(dir_global, count, self.date))
+
+        pd.DataFrame(shares_count).to_pickle(
+            "./{}/shares_count_{}.pkl".format(dir_global, self.date))
+        pd.DataFrame(F_nums_count).to_pickle(
+            "./{}/F_nums_count_{}.pkl".format(dir_global, self.date))
+        res_df = pd.DataFrame(np.concatenate(np.hstack(arr for arr in res)))
+        res_df.to_pickle(
+            "./{}/replica_{}.pkl".format(dir_global, self.date))
+        return res_df, shares_count
+
+    def runner_plot(self, init_price: int = 100) -> plt.plot:
+        """
+        <DESCRIPTION>
+        Plot out-sample results.
+        """
+        replica = pd.read_pickle(
+            "./{}/replica_{}.pkl".format(dir_global, self.date))
+        idx_ret = DataSplit(self.mkt, self.date,
+                            self.idx_weight).idx.pct_change()
+        original = idx_ret[freq_1-1:freq_1 + len(replica)-1]
+        # NOTE: Original index created by constituents.
+        # original = method.stocks_ret.mean(
+        #     axis=1)[freq_1-1:freq_1 + len(replica)-1]
+
+        replica = self.func_plot_init_price(replica, init_price).cumsum()
+        original = self.func_plot_init_price(original, init_price).cumsum()
+        original.rename(
+            index={0: original.index[1] - pd.DateOffset(days=1)}, inplace=True)
+
+        shares_count = pd.read_pickle(
+            "./{}/shares_count_{}.pkl".format(dir_global, self.date))
+        shares_count = pd.DataFrame(np.concatenate(
+            [item for item in shares_count.values for _ in range(freq_2)]))
+        shares_count = self.func_plot_init_price(shares_count, np.nan)
+        shares_count_mean = int(shares_count[1:].mean().values)
+
+        replica.index = original.index
+        shares_count.index = original.index
+
+        shares_count_diff = shares_count.diff()
+        slope_change_idx = shares_count_diff.index[shares_count_diff[0] != 0]
+        markevery = [shares_count.index.get_loc(i) for i in slope_change_idx]
+
+        fig, ax1 = plt.subplots(figsize=(25, 10))
+        plt.title('REPLICA VERSUS ORIGINAL: {}, {}, {}'.format(
+            self.date, freq_1, freq_2))
+
+        ax1.plot(replica, label='REPLICA', color='r', linewidth=2.5)
+        ax1.plot(original, label='ORIGINAL', color='black', linewidth=2.5)
+        ax1.set_xlabel('Date')
+        ax1.set_ylabel('Cumulative return')
+        ax1.legend(loc='best')
+
+        ax2 = ax1.twinx()
+        ax2.plot(shares_count, label='SHARES COUNT',
+                 color='b', linewidth=1.5, linestyle='--',
+                 marker='o', markevery=markevery)
+        ax2.set_ylabel('Number of shares')
+        ax2.axhline(shares_count_mean, color='g',
+                    linestyle='--', label='MEAN SHARES COUNT: {}'.format(shares_count_mean))
+        ax2.legend(loc='lower right')
+
+        # for i, index in enumerate(markevery[1:]):
+        #     value = shares_count.iloc[index][0]
+        #     index_date = shares_count.index[index]
+        #     ax2.annotate(f"{int(value)}",
+        #                  (index_date, value),
+        #                  textcoords="offset points",
+        #                  xytext=(0, -20),
+        #                  ha='center',
+        #                  fontsize=10,
+        #                  color='black',
+        #                  rotation=45)
+        plt.savefig(
+            './RUNNER_GRAPHS_FL/{}.jpg'.format(dir_global), format='jpeg')
+        # plt.show()
+
+
+if __name__ == "__main__":
+    freq_1s = [125, 250, 375]
+    freq_2s = [5, 10, 15, 20]
+    for val_1, val_2 in itertools.product(freq_1s, freq_2s):
+        freq_1 = val_1
+        freq_2 = val_2
+        dir_global = "RUNNER_FL_{}_{}_{}_p_val_{}".format(
+            freq_1, freq_2, date, p_val)
+        # locate_dir("./{}/".format(dir_global))
+
+        # runner = MethodRunnerFL(date='Y5')
+        # if os.path.exists('./{}/'.format(dir_global)):
+        #     res_df, shares_count = runner.runner()
+        #     runner.runner_plot(init_price=100)
+        #     print("DONE. MOVING ON...")
+
+        runner = MethodRunnerFL(date='Y5')
+        # res_df, shares_count = runner.runner()
+        runner.runner_plot(init_price=100)
