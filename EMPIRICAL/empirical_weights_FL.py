@@ -68,6 +68,7 @@ class EmWeightsFL(EmMethodFL):
         Get the replicated index term in initial value constraint.
         """
         init_leaders = pd.DataFrame(self.leaders.cumsum(axis=1)).values[:, -1]
+
         # NOTE: PRICE
         # init_leaders = self.leaders_shares[:, -1]
         return np.dot(x, init_leaders)
@@ -79,12 +80,9 @@ class EmWeightsFL(EmMethodFL):
         Get the original index term in initial value constraint.
         """
         init_stocks_ret = self.idx_ret.cumsum()[-1]
-        # NOTE: Index return created from constituents.
-        # init_stocks_ret = self.stocks_ret.cumsum(axis=0).iloc[-1, :]
+
         # NOTE: PRICE
         # init_stocks_ret = self.stocks.iloc[-1, :]
-        # NOTE: Index return created from constituents.
-        # return np.dot(self.weights_idx, init_stocks_ret)
         return init_stocks_ret
 
     def const_1(self, x: np.ndarray) -> np.ndarray:
@@ -108,11 +106,15 @@ class EmWeightsFL(EmMethodFL):
         """
         x = x.reshape((1, -1))
 
+        # NOTE: WELL-WORKING IN IN-SAMPLE DATAS
+        # replica_idx = pd.DataFrame(
+        #     np.dot(x, self.leaders_ret)).cumsum(axis=1).values
+        # origin_idx = self.idx_ret.cumsum(axis=0).values
+
+        # NOTE: WELL-WORKING IN OUT-SAMPLE DATAS
         replica_idx = pd.DataFrame(
-            np.dot(x, self.leaders)).cumsum(axis=1).values
-        # origin_idx = pd.DataFrame(
-        #     np.dot(self.weights_idx, self.stocks_ret.T)).cumsum().values
-        origin_idx = self.idx_ret.cumsum(axis=0).values
+            np.dot(x, self.leaders_ret)).values
+        origin_idx = self.idx_ret.values
 
         # NOTE: PRICE
         # replica_idx = np.dot(x, self.leaders_shares)
@@ -165,7 +167,6 @@ class EmWeightsFL(EmMethodFL):
         opt_weights, res = self.optimize()
         replica = pd.DataFrame(np.dot(opt_weights, self.leaders)).T.cumsum()
         origin = self.idx_ret.cumsum()
-        # origin = self.stocks_ret.mean(axis=1).cumsum()
         replica.index = origin.index
 
         plt.figure(figsize=(15, 5))
