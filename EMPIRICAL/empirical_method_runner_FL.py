@@ -187,7 +187,8 @@ class MethodRunnerFL(Func):
             "./{}/shares_count_{}.pkl".format(dir_global, self.date))
         pd.DataFrame(F_nums_count).to_pickle(
             "./{}/F_nums_count_{}.pkl".format(dir_global, self.date))
-        res_df = pd.DataFrame(np.concatenate(np.hstack(arr for arr in res)))
+
+        res_df = pd.DataFrame(np.concatenate(res).flatten())
         res_df.to_pickle(
             "./{}/replica_{}.pkl".format(dir_global, self.date))
 
@@ -208,15 +209,10 @@ class MethodRunnerFL(Func):
         replica = pd.read_pickle(
             "./{}/replica_{}.pkl".format(dir_global, self.date))
         idx_ret = DataSplit(self.mkt, self.date,
-                            self.idx_weight).idx.pct_change()
-        # NOTE: START DATE
+                            self.idx_weight).idx
+        idx_ret = np.log(idx_ret / idx_ret.shift(1))
         idx_ret = idx_ret[start_date:]
         original = idx_ret[:len(replica)]
-        # NOTE: Code before adjusting start_date.
-        # original = idx_ret[freq_1-1:freq_1 + len(replica)-1]
-        # NOTE: Original index created by constituents.
-        # original = method.stocks_ret.mean(
-        #     axis=1)[freq_1-1:freq_1 + len(replica)-1]
 
         replica = self.func_plot_init_price(replica, init_price).cumsum()
         original = self.func_plot_init_price(original, init_price).cumsum()

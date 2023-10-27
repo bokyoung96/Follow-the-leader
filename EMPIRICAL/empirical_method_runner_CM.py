@@ -21,7 +21,7 @@ def locate_dir(dir_name):
 freq_1 = 125
 freq_2 = 5
 date = datetime.date.today()
-ev = 0.9
+ev = 0.999
 start_date = '2011-01-01'
 
 
@@ -81,7 +81,7 @@ class DataSplit:
 
 class MethodRunnerCM(Func):
     def __init__(self,
-                 EV: float = 0.9,
+                 EV: float = 0.999,
                  min_R2: float = 0.8,
                  mkt: str = 'KOSPI200',
                  date: str = 'Y15',
@@ -207,18 +207,11 @@ class MethodRunnerCM(Func):
         """
         replica = pd.read_pickle(
             "./{}/replica_{}.pkl".format(dir_global, self.date))
-        # method = EmMethodCM(self.data_split.idx, DataSplit(
-        #     self.mkt, self.date, self.idx_weight).stocks)
         idx_ret = DataSplit(self.mkt, self.date,
-                            self.idx_weight).idx.pct_change()
-        # NOTE: START DATE
+                            self.idx_weight).idx
+        idx_ret = np.log(idx_ret / idx_ret.shift(1))
         idx_ret = idx_ret[start_date:]
         original = idx_ret[:len(replica)]
-        # NOTE: Code before adjusting start_date.
-        # original = idx_ret[freq_1-1:freq_1 + len(replica)-1]
-        # NOTE: Original index created by constituents.
-        # original = method.stocks_ret.mean(
-        #     axis=1)[freq_1-1:freq_1 + len(replica)-1]
 
         replica = self.func_plot_init_price(replica, init_price).cumsum()
         original = self.func_plot_init_price(original, init_price).cumsum()
