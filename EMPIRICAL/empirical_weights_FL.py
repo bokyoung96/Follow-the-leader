@@ -108,9 +108,11 @@ class EmWeightsFL(EmMethodFL):
         """
         x = x.reshape((1, -1))
 
-        replica_idx = pd.DataFrame(np.dot(x, self.leaders)).cumsum().values
-        origin_idx = pd.DataFrame(
-            np.dot(self.weights_idx, self.stocks_ret.T)).cumsum().values
+        replica_idx = pd.DataFrame(
+            np.dot(x, self.leaders)).cumsum(axis=1).values
+        # origin_idx = pd.DataFrame(
+        #     np.dot(self.weights_idx, self.stocks_ret.T)).cumsum().values
+        origin_idx = self.idx_ret.cumsum(axis=0).values
 
         # NOTE: PRICE
         # replica_idx = np.dot(x, self.leaders_shares)
@@ -130,7 +132,7 @@ class EmWeightsFL(EmMethodFL):
         Boundary condition is not in use. 
         However, to prevent short-selling, remove commentaries and add bounds option in minimize function.
         """
-        weights_init = np.full((1, self.shares_n), 1/self.shares_n)
+        weights_init = np.full((1, self.shares_n), 1/self.shares_n).flatten()
 
         # bounds = [(0, None) for _ in range(self.shares_n)]
         if self.shares_n == 1:
@@ -175,7 +177,7 @@ class EmWeightsFL(EmMethodFL):
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y1')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y5')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     weights = EmWeightsFL(idx, stocks)

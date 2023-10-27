@@ -21,14 +21,15 @@ def locate_dir(dir_name):
 freq_1 = 125
 freq_2 = 5
 date = datetime.date.today()
-ev = 0.99
+ev = 0.9
+start_date = '2011-01-01'
 
 
 # RUNNER_{freq_1}__{freq_2}_{date}_{ev}
 dir_global = "RUNNER_CM_{}_{}_{}_ev_{}".format(
     freq_1, freq_2, date, ev)
 # locate_dir("./{}/".format(dir_global))
-# locate_dir("RUNNER_GRAPHS_CM")
+locate_dir("RUNNER_GRAPHS_CM")
 
 
 class DataSplit:
@@ -62,6 +63,9 @@ class DataSplit:
         """
         res = []
         start = 0
+        temp_start = self.stocks.loc[start_date:]
+        temp_window = self.stocks.loc[:start_date].iloc[-self.years:]
+        self.stocks = pd.concat([temp_window, temp_start], axis=0)
         rows = len(self.stocks)
         while start < rows:
             end = start + self.years + self.months
@@ -77,14 +81,14 @@ class DataSplit:
 
 class MethodRunnerCM(Func):
     def __init__(self,
-                 EV: float = 0.99,
+                 EV: float = 0.9,
                  min_R2: float = 0.8,
                  mkt: str = 'KOSPI200',
-                 date: str = 'Y3',
+                 date: str = 'Y15',
                  idx_weight: str = 'EQ'
                  ):
         """
-        <DESCRIPTION<
+        <DESCRIPTION>
         Run from leader stock selection to weight optimization.
 
         <PARAMETER>
@@ -121,6 +125,7 @@ class MethodRunnerCM(Func):
         count = 0
         shares_count = []
         F_nums_count = []
+        weights_count = []
         success_count = 0
         sample_division = -freq_2
         for stocks in self.splits:
@@ -167,6 +172,7 @@ class MethodRunnerCM(Func):
             res.append(out_sample_res)
             shares_count.append(weights.shares_n)
             F_nums_count.append(weights.F_nums)
+            weights_count.append(opt_weights)
 
             count += 1
             print("ATTEMPT {} OF {} COMPLETED. MOVING ON...".format(
@@ -180,9 +186,18 @@ class MethodRunnerCM(Func):
             "./{}/shares_count_{}.pkl".format(dir_global, self.date))
         pd.DataFrame(F_nums_count).to_pickle(
             "./{}/F_nums_count_{}.pkl".format(dir_global, self.date))
-        res_df = pd.DataFrame(np.concatenate(np.hstack(arr for arr in res)))
+
+        res_df = pd.DataFrame(np.concatenate(res).flatten())
         res_df.to_pickle(
             "./{}/replica_{}.pkl".format(dir_global, self.date))
+
+        sums = []
+        for arr in weights_count:
+            arr_sum = np.sum(arr)
+            sums.append(arr_sum)
+        weights_count_df = pd.DataFrame(sums)
+        weights_count_df.to_pickle(
+            "./{}/weights_count_{}.pkl".format(dir_global, self.date))
         return res_df, shares_count
 
     def runner_plot(self, init_price: int = 100) -> plt.plot:
@@ -196,7 +211,11 @@ class MethodRunnerCM(Func):
         #     self.mkt, self.date, self.idx_weight).stocks)
         idx_ret = DataSplit(self.mkt, self.date,
                             self.idx_weight).idx.pct_change()
-        original = idx_ret[freq_1-1:freq_1 + len(replica)-1]
+        # NOTE: START DATE
+        idx_ret = idx_ret[start_date:]
+        original = idx_ret[:len(replica)]
+        # NOTE: Code before adjusting start_date.
+        # original = idx_ret[freq_1-1:freq_1 + len(replica)-1]
         # NOTE: Original index created by constituents.
         # original = method.stocks_ret.mean(
         #     axis=1)[freq_1-1:freq_1 + len(replica)-1]
@@ -266,12 +285,12 @@ if __name__ == "__main__":
             freq_1, freq_2, date, ev)
         locate_dir("./{}/".format(dir_global))
 
-        runner = MethodRunnerCM(date='Y5')
+        runner = MethodRunnerCM(date='Y15')
         if os.path.exists('./{}/'.format(dir_global)):
             res_df, shares_count = runner.runner()
             runner.runner_plot(init_price=100)
             print("DONE. MOVING ON...")
 
-        # runner = MethodRunnerCM(date='Y5')
-        # res_df, shares_count = runner.runner()
+        # runner = MethodRunnerCM(date='Y15')
+        # res_df, shares_count, weights_count = runner.runner()
         # runner.runner_plot(init_price=100)

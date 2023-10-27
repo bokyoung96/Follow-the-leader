@@ -22,18 +22,19 @@ freq_1 = 125
 freq_2 = 5
 date = datetime.date.today()
 p_val = 0.1
+start_date = '2011-01-01'
 
 
 # RUNNER_{freq_1}__{freq_2}_{date}_{p_val}
 dir_global = "RUNNER_FL_{}_{}_{}_p_val_{}".format(
     freq_1, freq_2, date, p_val)
 # locate_dir("./{}/".format(dir_global))
-# locate_dir("RUNNER_GRAPHS_FL")
+locate_dir("RUNNER_GRAPHS_FL")
 
 
 class DataSplit:
     def __init__(self, mkt: str = 'KOSPI200',
-                 date: str = 'Y5',
+                 date: str = 'Y15',
                  idx_weight: str = 'EQ'):
         """
         <DESCRIPTION>
@@ -63,6 +64,9 @@ class DataSplit:
         res = []
         start = 0
 
+        temp_start = self.stocks.loc[start_date:]
+        temp_window = self.stocks.loc[:start_date].iloc[-self.years:]
+        self.stocks = pd.concat([temp_window, temp_start], axis=0)
         rows = len(self.stocks)
         while start < rows:
             end = start + self.years + self.months
@@ -81,7 +85,7 @@ class MethodRunnerFL(Func):
                  F_max: int = 30,
                  EV: float = 0.9,
                  mkt: str = 'KOSPI200',
-                 date: str = 'Y5',
+                 date: str = 'Y15',
                  idx_weight: str = 'EQ'
                  ):
         """
@@ -122,6 +126,7 @@ class MethodRunnerFL(Func):
         count = 0
         shares_count = []
         F_nums_count = []
+        weights_count = []
         success_count = 0
         sample_division = -freq_2
         for stocks in self.splits:
@@ -168,6 +173,7 @@ class MethodRunnerFL(Func):
             res.append(out_sample_res)
             shares_count.append(weights.shares_n)
             F_nums_count.append(weights.F_nums)
+            weights_count.append(opt_weights)
 
             count += 1
             print("ATTEMPT {} OF {} COMPLETED. MOVING ON...".format(
@@ -184,6 +190,14 @@ class MethodRunnerFL(Func):
         res_df = pd.DataFrame(np.concatenate(np.hstack(arr for arr in res)))
         res_df.to_pickle(
             "./{}/replica_{}.pkl".format(dir_global, self.date))
+
+        sums = []
+        for arr in weights_count:
+            arr_sum = np.sum(arr)
+            sums.append(arr_sum)
+        weights_count_df = pd.DataFrame(sums)
+        weights_count_df.to_pickle(
+            "./{}/weights_count_{}.pkl".format(dir_global, self.date))
         return res_df, shares_count
 
     def runner_plot(self, init_price: int = 100) -> plt.plot:
@@ -195,7 +209,11 @@ class MethodRunnerFL(Func):
             "./{}/replica_{}.pkl".format(dir_global, self.date))
         idx_ret = DataSplit(self.mkt, self.date,
                             self.idx_weight).idx.pct_change()
-        original = idx_ret[freq_1-1:freq_1 + len(replica)-1]
+        # NOTE: START DATE
+        idx_ret = idx_ret[start_date:]
+        original = idx_ret[:len(replica)]
+        # NOTE: Code before adjusting start_date.
+        # original = idx_ret[freq_1-1:freq_1 + len(replica)-1]
         # NOTE: Original index created by constituents.
         # original = method.stocks_ret.mean(
         #     axis=1)[freq_1-1:freq_1 + len(replica)-1]
@@ -234,6 +252,7 @@ class MethodRunnerFL(Func):
                  color='b', linewidth=1.5, linestyle='--',
                  marker='o', markevery=markevery)
         ax2.set_ylabel('Number of shares')
+        ax2.set_ylim(0, 200)
         ax2.axhline(shares_count_mean, color='g',
                     linestyle='--', label='MEAN SHARES COUNT: {}'.format(shares_count_mean))
         ax2.legend(loc='lower right')
@@ -262,14 +281,14 @@ if __name__ == "__main__":
         freq_2 = val_2
         dir_global = "RUNNER_FL_{}_{}_{}_p_val_{}".format(
             freq_1, freq_2, date, p_val)
-        # locate_dir("./{}/".format(dir_global))
+        locate_dir("./{}/".format(dir_global))
+
+        runner = MethodRunnerFL(date='Y15')
+        if os.path.exists('./{}/'.format(dir_global)):
+            res_df, shares_count = runner.runner()
+            runner.runner_plot(init_price=100)
+            print("DONE. MOVING ON...")
 
         # runner = MethodRunnerFL(date='Y5')
-        # if os.path.exists('./{}/'.format(dir_global)):
-        #     res_df, shares_count = runner.runner()
-        #     runner.runner_plot(init_price=100)
-        #     print("DONE. MOVING ON...")
-
-        runner = MethodRunnerFL(date='Y5')
         # res_df, shares_count = runner.runner()
-        runner.runner_plot(init_price=100)
+        # runner.runner_plot(init_price=100)

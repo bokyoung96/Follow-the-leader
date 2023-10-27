@@ -48,12 +48,15 @@ class EmMethodFL(Func):
         self.EV = EV
 
         self.stocks_ret = self.stocks.copy()
-        self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
+        self.stocks_ret = np.log(
+            self.stocks / self.stocks.shift(1)).iloc[1:, :]
+        # self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
         # self.stocks_ret = pd.DataFrame(
         #     self.scaler.fit_transform(self.stocks_ret))
 
         self.idx_ret = self.idx.copy()
-        self.idx_ret = self.idx_ret.pct_change()[1:]
+        self.idx_ret = np.log(self.idx / self.idx.shift(1))[1:]
+        # self.idx_ret = self.idx_ret.pct_change()[1:]
 
         self.F_nums = None
         self.F_pca = None
@@ -132,20 +135,20 @@ class EmMethodFL(Func):
             model = self.func_regression(factor.T, shares.T)
             resid = model.resid
 
-            F_nums, ic = self.func_bai_ng(
-                resid, ic_method=2, max_factor=self.F_max)
+            # F_nums, ic = self.func_bai_ng(
+            #     resid, ic_method=2, max_factor=self.F_max)
 
-            # pca = stPCA(data=resid, ncomp=self.F_max,
-            #             standardize=False)
-            # F_nums = np.argmin(pca.ic['IC_p2'])
+            pca = stPCA(data=resid, ncomp=self.F_max,
+                        standardize=False)
+            F_nums = np.argmin(pca.ic['IC_p2'])
 
             if F_nums == 0:
                 break
             else:
-                # print("FACTOR LEFT: {}! IC: {} -> MOVING ON...".format(F_nums,
-                #       pca.ic['IC_p2'][F_nums]))
                 print("FACTOR LEFT: {}! IC: {} -> MOVING ON...".format(F_nums,
-                      ic))
+                      pca.ic['IC_p2'][F_nums]))
+                # print("FACTOR LEFT: {}! IC: {} -> MOVING ON...".format(F_nums,
+                #       ic))
                 if count == 1:
                     const_reg = 0
                 else:

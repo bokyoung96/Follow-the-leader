@@ -38,10 +38,13 @@ class EmMethodNV(Func):
         self.stocks_num = stocks_num
 
         self.stocks_ret = self.stocks.copy()
-        self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
+        self.stocks_ret = np.log(
+            self.stocks / self.stocks.shift(1)).iloc[1:, :]
+        # self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
 
         self.idx_ret = self.idx.copy()
-        self.idx_ret = self.idx_ret.pct_change()[1:]
+        self.idx_ret = np.log(self.idx / self.idx.shift(1))[1:]
+        # self.idx_ret = self.idx_ret.pct_change()[1:]
 
         self.F_nums = None
         self.shares_n = None
@@ -56,7 +59,7 @@ class EmMethodNV(Func):
         rank = self.func_rank(corr)
 
         leaders = self.stocks.iloc[:, np.argsort(rank)]
-        leaders = leaders.iloc[:, :method.stocks_num].T
+        leaders = leaders.iloc[:, :self.stocks_num].T
         print("\n***** PROGRESS FINISHED *****\n")
 
         self.shares_n = len(leaders)
@@ -100,7 +103,7 @@ class EmMethodNV(Func):
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y3')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y15')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     method = EmMethodNV(idx, stocks)
