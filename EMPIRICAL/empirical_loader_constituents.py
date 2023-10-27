@@ -29,6 +29,7 @@ class DirDate(Enum):
     Y3 = auto()
     Y5 = auto()
     Y10 = auto()
+    Y15 = auto()
     Y20 = auto()
     WHOLE = auto()
 
@@ -92,7 +93,7 @@ class ConstLoader:
 
 
 if __name__ == "__main__":
-    const_loader = ConstLoader(mkt='KOSPI200', date='Y5')
+    const_loader = ConstLoader(mkt='KOSPI200', date='Y10')
     # data = const_loader.get_pivot_data()
 
     splitter = os.path.splitext(const_loader.file_name)[0]

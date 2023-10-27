@@ -46,15 +46,17 @@ class EmMethodCM(Func):
 
         self.idx = idx
         self.stocks = stocks.astype(np.float64)
-        self.stocks_idx = self.stocks.mean(axis=1)
         self.stocks_scaled = pd.DataFrame(
             self.scaler.fit_transform(self.stocks))
 
         self.stocks_ret = self.stocks.copy()
-        self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
+        self.stocks_ret = np.log(
+            self.stocks / self.stocks.shift(1)).iloc[1:, :]
+        # self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
 
         self.idx_ret = self.idx.copy()
-        self.idx_ret = self.idx_ret.pct_change()[1:]
+        self.idx_ret = np.log(self.idx / self.idx.shift(1))[1:]
+        # self.idx_ret = self.idx_ret.pct_change()[1:]
 
         self.F_nums = None
         self.F_pca = None
@@ -214,8 +216,8 @@ class EmMethodCM(Func):
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y1')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y15')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     method = EmMethodCM(idx, stocks)
-    # method.fast_plot()
+    method.fast_plot()

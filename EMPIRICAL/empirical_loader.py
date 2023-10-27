@@ -28,6 +28,7 @@ class DirDate(Enum):
     Y3 = auto()
     Y5 = auto()
     Y10 = auto()
+    Y15 = auto()
     Y20 = auto()
     WHOLE = auto()
 
@@ -140,5 +141,5 @@ class DataLoader:
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y3')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y15')
     idx, stocks = data_loader.as_empirical(idx_weight='EQ')
