@@ -157,14 +157,20 @@ class EmWeightsFL(EmMethodFL):
                               options={'maxiter': 1000})
 
             optimal_weights = result.x.reshape((1, -1))
-            return optimal_weights, result
+            
+            # WEIGHT SAVE POINT
+            optimal_weights_df = pd.DataFrame(columns = self.stocks.columns)
+            optimal_weights_save = pd.DataFrame(optimal_weights,
+                                                columns=self.stocks.T.iloc[self.get_matched_rows()].index)
+            save = optimal_weights_df.combine_first(optimal_weights_save)[self.stocks.columns]
+            return optimal_weights, result, save
 
     def fast_plot(self) -> plt.plot:
         """
         <DESCRIPTION>
         Fast equal weight replica and origin plotting.
         """
-        opt_weights, res = self.optimize()
+        opt_weights, res, save = self.optimize()
         replica = pd.DataFrame(np.dot(opt_weights, self.leaders)).T.cumsum()
         origin = self.idx_ret.cumsum()
         replica.index = origin.index
@@ -182,4 +188,4 @@ if __name__ == "__main__":
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     weights = EmWeightsFL(idx, stocks)
-    opt_weights, res = weights.fast_plot()
+    opt_weights, res, save = weights.fast_plot()

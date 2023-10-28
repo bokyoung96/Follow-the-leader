@@ -129,6 +129,7 @@ class MethodRunnerFL(Func):
         weights_count = []
         success_count = 0
         sample_division = -freq_2
+        self.start_date_adj = None
         for stocks in self.splits:
             # NOTE: Drop process executed in runner.
             consts = self.consts.loc[stocks.index[-1]]
@@ -142,6 +143,10 @@ class MethodRunnerFL(Func):
 
             in_sample = stocks.iloc[:sample_division]
             out_sample_ret = stocks.pct_change().iloc[sample_division-1:-1]
+            if self.start_date_adj is None:
+                self.start_date_adj = out_sample_ret.index[0]
+            else:
+                pass
 
             in_sample_idx = self.data_split.idx[in_sample.index]
 
@@ -155,7 +160,7 @@ class MethodRunnerFL(Func):
                                       F_max=self.F_max,
                                       EV=self.EV)
 
-                opt_weights, opt_res = weights.optimize()
+                opt_weights, opt_res, save = weights.optimize()
                 if opt_res.success:
                     print("\n***** OPTIMIZATION SUCCESS *****\n")
                     success_count += 1
@@ -165,6 +170,8 @@ class MethodRunnerFL(Func):
                     opt_weights = np.full(
                         (1, weights.shares_n), weights.shares_n)
                     break
+            save.index = out_sample_ret.index[0]
+            weights_save = pd.concat([weights_save, save], ignore_index=False)
 
             leaders_out_sample = np.array(
                 out_sample_ret.T.iloc[weights.get_matched_rows(), :])
@@ -187,6 +194,8 @@ class MethodRunnerFL(Func):
             "./{}/shares_count_{}.pkl".format(dir_global, self.date))
         pd.DataFrame(F_nums_count).to_pickle(
             "./{}/F_nums_count_{}.pkl".format(dir_global, self.date))
+        pd.DataFrame(weights_save).to_pickle(
+            "./{}/weights_save_{}.pkl".format(dir_global, self.date))
 
         res_df = pd.DataFrame(np.concatenate(res).flatten())
         res_df.to_pickle(
@@ -211,7 +220,7 @@ class MethodRunnerFL(Func):
         idx_ret = DataSplit(self.mkt, self.date,
                             self.idx_weight).idx
         idx_ret = np.log(idx_ret / idx_ret.shift(1))
-        idx_ret = idx_ret[start_date:]
+        idx_ret = idx_ret[self.start_date_adj:]
         original = idx_ret[:len(replica)]
 
         replica = self.func_plot_init_price(replica, init_price).cumsum()

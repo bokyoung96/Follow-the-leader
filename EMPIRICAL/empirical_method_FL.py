@@ -200,19 +200,13 @@ class EmMethodFL(Func):
                 resid = model.resid
                 model_resid = self.func_regression(factors_init.T, resid)
 
-                if all(model_resid.pvalues > 0.1):
+                if all(model_resid.pvalues[1:] > 0.05):
                     temp.append(True)
                 else:
                     temp.append(False)
 
             if any(item == False for item in temp):
-                if count == 1:
-                    const_reg = 0
-                else:
-                    const_reg = 1
-                leaders_reg = np.vstack(
-                    (np.ones(leaders.shape[const_reg]), leaders))
-                model_add = self.func_regression(leaders_reg.T, factors)
+                model_add = self.func_regression(leaders.T, factors)
                 resid_add = model_add.resid
 
                 temp_corr = []

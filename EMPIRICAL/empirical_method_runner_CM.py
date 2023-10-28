@@ -21,7 +21,7 @@ def locate_dir(dir_name):
 freq_1 = 125
 freq_2 = 5
 date = datetime.date.today()
-ev = 0.999
+ev = 0.9
 start_date = '2011-01-01'
 
 
@@ -81,7 +81,7 @@ class DataSplit:
 
 class MethodRunnerCM(Func):
     def __init__(self,
-                 EV: float = 0.999,
+                 EV: float = 0.9,
                  min_R2: float = 0.8,
                  mkt: str = 'KOSPI200',
                  date: str = 'Y15',
@@ -126,8 +126,10 @@ class MethodRunnerCM(Func):
         shares_count = []
         F_nums_count = []
         weights_count = []
+        weights_save = pd.DataFrame()
         success_count = 0
         sample_division = -freq_2
+        self.start_date_adj = None
         for stocks in self.splits:
             # NOTE: Drop process executed in runner.
             consts = self.consts.loc[stocks.index[-1]]
@@ -141,6 +143,10 @@ class MethodRunnerCM(Func):
 
             in_sample = stocks.iloc[:sample_division]
             out_sample_ret = stocks.pct_change().iloc[sample_division-1:-1]
+            if self.start_date_adj is None:
+                self.start_date_adj = out_sample_ret.index[0]
+            else:
+                pass
 
             in_sample_idx = self.data_split.idx[in_sample.index]
 
@@ -154,7 +160,7 @@ class MethodRunnerCM(Func):
                                       EV=self.EV,
                                       min_R2=self.min_R2)
 
-                opt_weights, opt_res = weights.optimize()
+                opt_weights, opt_res, save = weights.optimize()
                 if opt_res.success:
                     print("\n***** OPTIMIZATION SUCCESS *****\n")
                     success_count += 1
@@ -164,6 +170,8 @@ class MethodRunnerCM(Func):
                     opt_weights = np.full(
                         (1, weights.shares_n), weights.shares_n)
                     break
+            save.index = [out_sample_ret.index[0]]
+            weights_save = pd.concat([weights_save, save], ignore_index=False)
 
             leaders_out_sample = np.array(
                 out_sample_ret.T.iloc[weights.get_matched_rows(), :])
@@ -186,6 +194,8 @@ class MethodRunnerCM(Func):
             "./{}/shares_count_{}.pkl".format(dir_global, self.date))
         pd.DataFrame(F_nums_count).to_pickle(
             "./{}/F_nums_count_{}.pkl".format(dir_global, self.date))
+        pd.DataFrame(weights_save).to_pickle(
+            "./{}/weights_save_{}.pkl".format(dir_global, self.date))
 
         res_df = pd.DataFrame(np.concatenate(res).flatten())
         res_df.to_pickle(
@@ -210,7 +220,7 @@ class MethodRunnerCM(Func):
         idx_ret = DataSplit(self.mkt, self.date,
                             self.idx_weight).idx
         idx_ret = np.log(idx_ret / idx_ret.shift(1))
-        idx_ret = idx_ret[start_date:]
+        idx_ret = idx_ret[self.start_date_adj:]
         original = idx_ret[:len(replica)]
 
         replica = self.func_plot_init_price(replica, init_price).cumsum()
@@ -270,7 +280,7 @@ class MethodRunnerCM(Func):
 
 if __name__ == "__main__":
     freq_1s = [125, 250, 375]
-    freq_2s = [5, 10, 15, 20]
+    freq_2s = [20]
     for val_1, val_2 in itertools.product(freq_1s, freq_2s):
         freq_1 = val_1
         freq_2 = val_2
