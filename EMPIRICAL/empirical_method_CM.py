@@ -50,13 +50,13 @@ class EmMethodCM(Func):
             self.scaler.fit_transform(self.stocks))
 
         self.stocks_ret = self.stocks.copy()
-        self.stocks_ret = np.log(
-            self.stocks / self.stocks.shift(1)).iloc[1:, :]
-        # self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
+        # self.stocks_ret = np.log(
+        #     self.stocks / self.stocks.shift(1)).iloc[1:, :]
+        self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
 
         self.idx_ret = self.idx.copy()
-        self.idx_ret = np.log(self.idx / self.idx.shift(1))[1:]
-        # self.idx_ret = self.idx_ret.pct_change()[1:]
+        # self.idx_ret = np.log(self.idx / self.idx.shift(1))[1:]
+        self.idx_ret = self.idx_ret.pct_change()[1:]
 
         self.F_nums = None
         self.F_pca = None

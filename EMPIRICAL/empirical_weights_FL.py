@@ -3,6 +3,7 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Empirical Analysis
 """
+from sklearn.preprocessing import MinMaxScaler
 from scipy.optimize import minimize
 
 from empirical_method_FL import *
@@ -67,7 +68,9 @@ class EmWeightsFL(EmMethodFL):
         <DESCRIPTION>
         Get the replicated index term in initial value constraint.
         """
-        init_leaders = pd.DataFrame(self.leaders.cumsum(axis=1)).values[:, -1]
+        # init_leaders = pd.DataFrame(self.leaders.cumsum(axis=1)).values[:, -1]
+        init_leaders = ((1 + pd.DataFrame(self.leaders)
+                         ).cumprod(axis=1) - 1).values[:, -1]
 
         # NOTE: PRICE
         # init_leaders = self.leaders_shares[:, -1]
@@ -79,18 +82,26 @@ class EmWeightsFL(EmMethodFL):
         <DESCRIPTION>
         Get the original index term in initial value constraint.
         """
-        init_stocks_ret = self.idx_ret.cumsum()[-1]
+        # init_stocks_ret = self.idx_ret.cumsum()[-1]
+        init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1)[-1]
 
         # NOTE: PRICE
         # init_stocks_ret = self.stocks.iloc[-1, :]
         return init_stocks_ret
+
+    # def const_1(self, x: np.ndarray) -> np.ndarray:
+    #     """
+    #     <DESCRIPTION>
+    #     Get factor spanning constraint.
+    #     """
+    #     return (self.const_replica_FL(x) - self.const_idx_FL).flatten()
 
     def const_1(self, x: np.ndarray) -> np.ndarray:
         """
         <DESCRIPTION>
         Get factor spanning constraint.
         """
-        return (self.const_replica_FL(x) - self.const_idx_FL).flatten()
+        return np.sum((self.const_replica_FL(x) - self.const_idx_FL) ** 2)
 
     def const_2(self, x: np.ndarray) -> np.ndarray:
         """
@@ -106,18 +117,22 @@ class EmWeightsFL(EmMethodFL):
         """
         x = x.reshape((1, -1))
 
-        # NOTE: WELL-WORKING IN IN-SAMPLE DATAS
-        # replica_idx = pd.DataFrame(
-        #     np.dot(x, self.leaders_ret)).cumsum(axis=1).values
-        # origin_idx = self.idx_ret.cumsum(axis=0).values
+        # NOTE: VALUE-ERROR INF
+        # scaler = MinMaxScaler()
+
+        # replica_idx = (pd.DataFrame(
+        #     1 + np.dot(x, self.leaders_ret)).T.cumprod() - 1).values
+        # origin_idx = ((1 + self.idx_ret).cumprod() - 1).values
+
+        # replica_idx = scaler.fit_transform(
+        #     replica_idx.reshape(-1, 1)).flatten()
+        # origin_idx = scaler.fit_transform(
+        #     origin_idx.reshape(-1, 1)).flatten()
 
         # NOTE: WELL-WORKING IN OUT-SAMPLE DATAS
         replica_idx = pd.DataFrame(
-            np.dot(x, self.leaders_ret)).values
-
-        # NOTE: CHGS
-        # origin_idx = self.idx_ret.values
-        origin_idx = self.stocks_ret.mean(axis=1).values
+            np.dot(x, self.leaders)).values
+        origin_idx = self.idx_ret.values
 
         # NOTE: PRICE
         # replica_idx = np.dot(x, self.leaders_shares)
@@ -147,17 +162,30 @@ class EmWeightsFL(EmMethodFL):
         else:
             print("***** STARTING OPTIMIZATION FOR WEIGHTS *****")
 
-            consts_1 = [{'type': 'eq', 'fun': self.const_1,
-                         'args': (i,)} for i in range(self.FL_pca.shape[0])]
+            # consts_1 = [{'type': 'eq', 'fun': self.const_1,
+            #              'args': (i,)} for i in range(self.FL_pca.shape[0])]
+            consts_1 = [{'type': 'eq', 'fun': self.const_1}]
             consts_2 = [{'type': 'eq', 'fun': self.const_2}]
-            consts = consts_1.extend(consts_2)
+            consts = consts_1 + consts_2
 
+            def create_callback():
+                iter_count = 0
+
+                def callback(x):
+                    nonlocal iter_count
+                    iter_count += 1
+                    print(f"CURRENT ITER: {iter_count}")
+                return callback
+
+            callback_func = create_callback()
             result = minimize(lambda x: self.obj(x),
                               weights_init,
                               method='SLSQP',
                               constraints=consts,
                               #   bounds=bounds,
-                              options={'maxiter': 1000})
+                              options={'maxiter': 1000,
+                                       'ftol': 1e-4},
+                              callback=callback_func)
 
             optimal_weights = result.x.reshape((1, -1))
 
@@ -175,8 +203,9 @@ class EmWeightsFL(EmMethodFL):
         Fast equal weight replica and origin plotting.
         """
         opt_weights, res, save = self.optimize()
-        replica = pd.DataFrame(np.dot(opt_weights, self.leaders)).T.cumsum()
-        origin = self.idx_ret.cumsum()
+        replica = pd.DataFrame(
+            1 + np.dot(opt_weights, self.leaders)).T.cumprod() - 1
+        origin = (1 + self.idx_ret).cumprod() - 1
         replica.index = origin.index
 
         plt.figure(figsize=(15, 5))
@@ -188,7 +217,7 @@ class EmWeightsFL(EmMethodFL):
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y5')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y1')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     weights = EmWeightsFL(idx, stocks)
