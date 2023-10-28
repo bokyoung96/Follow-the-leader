@@ -129,6 +129,7 @@ class MethodRunnerFL(Func):
         weights_count = []
         success_count = 0
         sample_division = -freq_2
+        weights_save = pd.DataFrame()
         self.start_date_adj = None
         for stocks in self.splits:
             # NOTE: Drop process executed in runner.
@@ -170,7 +171,7 @@ class MethodRunnerFL(Func):
                     opt_weights = np.full(
                         (1, weights.shares_n), weights.shares_n)
                     break
-            save.index = out_sample_ret.index[0]
+            save.index = [out_sample_ret.index[0]]
             weights_save = pd.concat([weights_save, save], ignore_index=False)
 
             leaders_out_sample = np.array(
