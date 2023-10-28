@@ -70,7 +70,7 @@ class EmWeightsFL(EmMethodFL):
         """
         # init_leaders = pd.DataFrame(self.leaders.cumsum(axis=1)).values[:, -1]
         init_leaders = ((1 + pd.DataFrame(self.leaders)
-                         ).cumprod(axis=1) - 1).values[:, -1]
+                         ).cumprod(axis=1) - 1).iloc[:, -1]
 
         # NOTE: PRICE
         # init_leaders = self.leaders_shares[:, -1]
@@ -83,7 +83,7 @@ class EmWeightsFL(EmMethodFL):
         Get the original index term in initial value constraint.
         """
         # init_stocks_ret = self.idx_ret.cumsum()[-1]
-        init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1)[-1]
+        init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1).iloc[-1]
 
         # NOTE: PRICE
         # init_stocks_ret = self.stocks.iloc[-1, :]
@@ -217,7 +217,7 @@ class EmWeightsFL(EmMethodFL):
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y1')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y3')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     weights = EmWeightsFL(idx, stocks)

@@ -100,13 +100,19 @@ class Func:
         return sm.OLS(y, x).fit()
 
     @staticmethod
-    def func_diagonal(resid_matrix: np.ndarray, tolerance: float = 1e-4) -> bool:
+    def func_diagonal(resid_matrix: pd.DataFrame, tolerance: float = 1e-4) -> bool:
         """
         <DESCRIPTION>
         Test whether the covariance matrix of residuals is diagonal.
         """
-        non_diag_elements = np.abs(
-            resid_matrix - np.diag(np.diagonal(resid_matrix)))
+        resid_matrix_np = resid_matrix.to_numpy()
+        diagonal_elements = np.diag(resid_matrix_np)
+
+        expanded_diagonal_matrix = np.zeros_like(resid_matrix_np)
+        np.fill_diagonal(expanded_diagonal_matrix, diagonal_elements)
+
+        non_diag_elements = np.abs(resid_matrix_np - expanded_diagonal_matrix)
+
         is_diag = np.all(non_diag_elements < tolerance)
         return is_diag
 

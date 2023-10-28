@@ -71,7 +71,7 @@ class EmWeightsCM(EmMethodCM):
         # init_leaders = pd.DataFrame(
         #     self.leaders_ret.cumsum(axis=1)).values[:, -1]
         init_leaders = ((1 + pd.DataFrame(self.leaders_ret)
-                         ).cumprod(axis=1) - 1).values[:, -1]
+                         ).cumprod(axis=1) - 1).iloc[:, -1]
 
         # NOTE: PRICE
         # init_leaders = self.leaders_shares[:, -1]
@@ -84,7 +84,7 @@ class EmWeightsCM(EmMethodCM):
         Get the original index term in initial value constraint.
         """
         # init_stocks_ret = self.idx_ret.cumsum()[-1]
-        init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1)[-1]
+        init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1).iloc[-1]
 
         # NOTE: PRICE
         # init_stocks_ret = self.stocks.iloc[-1, :]
@@ -185,7 +185,7 @@ class EmWeightsCM(EmMethodCM):
                               constraints=consts,
                               # bounds=bounds,
                               options={'maxiter': 1000,
-                                       'ftol': 1e-4},
+                                       'ftol': 1e-6},
                               callback=callback_func)
 
             optimal_weights = result.x.reshape((1, -1))
