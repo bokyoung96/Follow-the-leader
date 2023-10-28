@@ -21,7 +21,7 @@ def locate_dir(dir_name):
 freq_1 = 125
 freq_2 = 5
 date = datetime.date.today()
-p_val = 0.1
+p_val = 0.05
 start_date = '2011-01-01'
 
 

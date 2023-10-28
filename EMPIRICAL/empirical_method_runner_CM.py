@@ -21,7 +21,7 @@ def locate_dir(dir_name):
 freq_1 = 125
 freq_2 = 5
 date = datetime.date.today()
-ev = 0.9
+ev = 0.99
 start_date = '2011-01-01'
 
 
@@ -81,7 +81,7 @@ class DataSplit:
 
 class MethodRunnerCM(Func):
     def __init__(self,
-                 EV: float = 0.9,
+                 EV: float = 0.99,
                  min_R2: float = 0.8,
                  mkt: str = 'KOSPI200',
                  date: str = 'Y15',
@@ -144,6 +144,7 @@ class MethodRunnerCM(Func):
 
             in_sample = stocks.iloc[:sample_division]
             out_sample_ret = stocks.pct_change().iloc[sample_division:]
+
             if self.start_date_adj is None:
                 self.start_date_adj = out_sample_ret.index[0]
             else:
@@ -297,6 +298,6 @@ if __name__ == "__main__":
             runner.runner_plot(init_price=100)
             print("DONE. MOVING ON...")
 
-        # runner = MethodRunnerCM(date='Y15')
-        # res_df, shares_count, weights_count = runner.runner()
-        # runner.runner_plot(init_price=100)
+    # runner = MethodRunnerCM(date='Y15')
+    # res_df, shares_count, weights_count = runner.runner()
+    # runner.runner_plot(init_price=100)
