@@ -196,28 +196,9 @@ class EmMethodCM(Func):
         res = self.stocks_ret.T.values[nums]
         return leaders, res
 
-    def fast_plot(self) -> plt.plot:
-        """
-        <DESCRIPTION>
-        Fast equal weight replica and origin plotting.
-        """
-        leaders = self.get_matched_returns()[1]
-        replica = pd.DataFrame(leaders).mean().cumsum()
-        origin = self.stocks_ret.mean(axis=1).cumsum()
-        # idx = self.idx.pct_change().cumsum()
-        replica.index = origin.index
-
-        plt.figure(figsize=(15, 5))
-        plt.plot(replica, label='REPLICA')
-        plt.plot(origin, label='ORIGIN')
-        # plt.plot(idx, label='IDX')
-        plt.legend(loc='best')
-        plt.show()
-
 
 if __name__ == "__main__":
     data_loader = DataLoader(mkt='KOSPI200', date='Y15')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     method = EmMethodCM(idx, stocks)
-    method.fast_plot()

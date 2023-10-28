@@ -28,7 +28,7 @@ start_date = '2011-01-01'
 # RUNNER_{freq_1}__{freq_2}_{date}_{p_val}
 dir_global = "RUNNER_FL_{}_{}_{}_p_val_{}".format(
     freq_1, freq_2, date, p_val)
-# locate_dir("./{}/".format(dir_global))
+
 locate_dir("RUNNER_GRAPHS_FL")
 
 
@@ -142,7 +142,7 @@ class MethodRunnerFL(Func):
             print("PREPROCESS DONE. MOVING ON...")
 
             in_sample = stocks.iloc[:sample_division]
-            out_sample_ret = stocks.pct_change().iloc[sample_division-1:-1]
+            out_sample_ret = stocks.pct_change().iloc[sample_division:]
             if self.start_date_adj is None:
                 self.start_date_adj = out_sample_ret.index[0]
             else:
@@ -185,8 +185,8 @@ class MethodRunnerFL(Func):
             count += 1
             print("ATTEMPT {} OF {} COMPLETED. MOVING ON...".format(
                 count, len(self.splits)))
-            pd.DataFrame(out_sample_res).to_pickle(
-                "./{}/replica_{}_{}.pkl".format(dir_global, count, self.date))
+            # pd.DataFrame(out_sample_res).to_pickle(
+            #     "./{}/replica_{}_{}.pkl".format(dir_global, count, self.date))
             pd.DataFrame(weights.get_matched_rows()).to_pickle(
                 "./{}/replica_matched_{}_{}.pkl".format(dir_global, count, self.date))
 
@@ -218,13 +218,15 @@ class MethodRunnerFL(Func):
         replica = pd.read_pickle(
             "./{}/replica_{}.pkl".format(dir_global, self.date))
         idx_ret = DataSplit(self.mkt, self.date,
-                            self.idx_weight).idx
-        idx_ret = np.log(idx_ret / idx_ret.shift(1))
+                            self.idx_weight).idx.pct_change()
         idx_ret = idx_ret[self.start_date_adj:]
         original = idx_ret[:len(replica)]
 
-        replica = self.func_plot_init_price(replica, init_price).cumsum()
-        original = self.func_plot_init_price(original, init_price).cumsum()
+        replica = (1 + self.func_plot_init_price(replica,
+                   init_price)).cumprod() - 1
+        original = (1 + self.func_plot_init_price(original,
+                    init_price)).cumprod() - 1
+
         original.rename(
             index={0: original.index[1] - pd.DateOffset(days=1)}, inplace=True)
 

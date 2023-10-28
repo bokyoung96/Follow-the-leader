@@ -5,7 +5,6 @@ Topic: Empirical Analysis
 """
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from sklearn.preprocessing import StandardScaler
 from statsmodels.multivariate.pca import PCA as stPCA
 
 from empirical_func import *
@@ -21,6 +20,7 @@ class EmMethodFL(Func):
                  F_max: int = 30,
                  EV: float = 0.90,
                  ):
+        super().__init__()
         """
         <DESCRIPTION>
         Get shares explaining the factors of the index under Follow-the-Leader method.
@@ -39,9 +39,6 @@ class EmMethodFL(Func):
         EV_cut: Cutoff used to limit cumulative explained variance ratio for PCA.
         shares_n: Used shares for replicating the original index by get_shares().
         """
-        super().__init__()
-        # self.scaler = StandardScaler(with_mean=True, with_std=False)
-
         self.idx = idx
         self.stocks = stocks.astype(np.float64)
         self.F_max = F_max
@@ -51,8 +48,6 @@ class EmMethodFL(Func):
         self.stocks_ret = np.log(
             self.stocks / self.stocks.shift(1)).iloc[1:, :]
         # self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
-        # self.stocks_ret = pd.DataFrame(
-        #     self.scaler.fit_transform(self.stocks_ret))
 
         self.idx_ret = self.idx.copy()
         self.idx_ret = np.log(self.idx / self.idx.shift(1))[1:]
@@ -277,26 +272,9 @@ class EmMethodFL(Func):
         print("\n***** NUMBER OF SHARES: {} *****\n".format(self.shares_n))
         return leaders
 
-    def fast_plot(self) -> plt.plot:
-        """
-        <DESCRIPTION>
-        Fast equal weight replica and origin plotting.
-        """
-        leaders = self.get_shares()
-        replica = pd.DataFrame(leaders).mean().cumsum()
-        origin = self.stocks_ret.mean(axis=1).cumsum()
-        replica.index = origin.index
-
-        plt.figure(figsize=(15, 5))
-        plt.plot(replica, label='REPLICA')
-        plt.plot(origin, label='ORIGIN')
-        plt.legend(loc='best')
-        plt.show()
-
 
 if __name__ == "__main__":
     data_loader = DataLoader(mkt='KOSPI200', date='Y3')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     method = EmMethodFL(idx, stocks)
-    method.fast_plot()
