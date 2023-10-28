@@ -6,8 +6,6 @@ Topic: Empirical Analysis
 import numpy as np
 import pandas as pd
 
-from time_spent_decorator import time_spent_decorator
-
 
 class MethodTransactionCost:
     def __init__(self,

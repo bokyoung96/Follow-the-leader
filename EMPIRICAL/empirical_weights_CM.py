@@ -115,7 +115,10 @@ class EmWeightsCM(EmMethodCM):
         # NOTE: WELL-WORKING IN OUT-SAMPLE DATAS
         replica_idx = pd.DataFrame(
             np.dot(x, self.leaders_ret)).values
-        origin_idx = self.idx_ret.values
+
+        # NOTE: CHGS
+        # origin_idx = self.idx_ret.values
+        origin_idx = self.stocks_ret.mean(axis=1).values
 
         # NOTE: PRICE
         # replica_idx = np.dot(x, self.leaders_shares)
@@ -158,12 +161,13 @@ class EmWeightsCM(EmMethodCM):
                               options={'maxiter': 1000})
 
             optimal_weights = result.x.reshape((1, -1))
-            
+
             # WEIGHT SAVE POINT
-            optimal_weights_df = pd.DataFrame(columns = self.stocks.columns)
+            optimal_weights_df = pd.DataFrame(columns=self.stocks.columns)
             optimal_weights_save = pd.DataFrame(optimal_weights,
                                                 columns=self.stocks.T.iloc[self.get_matched_rows()].index)
-            save = optimal_weights_df.combine_first(optimal_weights_save)[self.stocks.columns]
+            save = optimal_weights_df.combine_first(optimal_weights_save)[
+                self.stocks.columns]
             return optimal_weights, result, save
 
     def fast_plot(self) -> plt.plot:
@@ -186,7 +190,7 @@ class EmWeightsCM(EmMethodCM):
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y1')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y15')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     weights = EmWeightsCM(idx, stocks)
