@@ -3,9 +3,6 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Empirical Analysis
 """
-
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 from sklearn.preprocessing import StandardScaler
 
 from empirical_func import *
@@ -99,7 +96,7 @@ class EmMethodCM(Func):
         temp = []
         for factor in factors.T:
             corr = self.idx.reset_index(drop=True).corr(pd.Series(factor))
-            temp.append(corr)
+            temp.append(np.abs(corr))
 
         rank = self.func_rank(temp)
         res = factors.T[np.argsort(rank)]
@@ -116,7 +113,7 @@ class EmMethodCM(Func):
         for factor in factors:
             corr = self.stocks_scaled.apply(
                 lambda col: np.corrcoef(col, factor)[0, 1], axis=0)
-            temp.append(corr)
+            temp.append(np.abs(corr))
 
         res = []
         for item in temp:
@@ -146,7 +143,7 @@ class EmMethodCM(Func):
             while model.rsquared < self.min_R2:
                 corr = shares.apply(lambda row: np.corrcoef(
                     row, model.resid)[0, 1], axis=1)
-                rank = self.func_rank(corr)
+                rank = self.func_rank(np.abs(corr))
                 shares_adj = shares.iloc[np.argsort(
                     rank)].reset_index(drop=True)
 
@@ -198,7 +195,7 @@ class EmMethodCM(Func):
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y15')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y3')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     method = EmMethodCM(idx, stocks)

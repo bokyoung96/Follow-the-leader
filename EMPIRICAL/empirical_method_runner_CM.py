@@ -21,7 +21,7 @@ def locate_dir(dir_name):
 freq_1 = 125
 freq_2 = 5
 date = datetime.date.today()
-ev = 0.99
+ev = 0.9
 start_date = '2011-01-01'
 
 
@@ -81,7 +81,7 @@ class DataSplit:
 
 class MethodRunnerCM(Func):
     def __init__(self,
-                 EV: float = 0.99,
+                 EV: float = 0.9,
                  min_R2: float = 0.8,
                  mkt: str = 'KOSPI200',
                  date: str = 'Y15',
@@ -284,7 +284,7 @@ class MethodRunnerCM(Func):
 
 if __name__ == "__main__":
     freq_1s = [125, 250, 375]
-    freq_2s = [20]
+    freq_2s = [5, 10, 15, 20]
     for val_1, val_2 in itertools.product(freq_1s, freq_2s):
         freq_1 = val_1
         freq_2 = val_2

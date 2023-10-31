@@ -27,26 +27,22 @@ class EmMethodNV(Func):
         <CONSTRUCTOR>
         stocks_ret: Return data of stocks.
         idx_ret: Return data of index.
-        F_nums: Number of factors to be used, which will be None.
         shares_n: Used shares for replicating the original index by get_shares().
         """
         super().__init__()
-        # self.scaler = StandardScaler(with_mean=True, with_std=False)
-
         self.idx = idx
         self.stocks = stocks.astype(np.float64)
         self.stocks_num = stocks_num
 
         self.stocks_ret = self.stocks.copy()
-        self.stocks_ret = np.log(
-            self.stocks / self.stocks.shift(1)).iloc[1:, :]
-        # self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
+        # self.stocks_ret = np.log(
+        #     self.stocks / self.stocks.shift(1)).iloc[1:, :]
+        self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
 
         self.idx_ret = self.idx.copy()
-        self.idx_ret = np.log(self.idx / self.idx.shift(1))[1:]
-        # self.idx_ret = self.idx_ret.pct_change()[1:]
+        # self.idx_ret = np.log(self.idx / self.idx.shift(1))[1:]
+        self.idx_ret = self.idx_ret.pct_change()[1:]
 
-        self.F_nums = None
         self.shares_n = None
 
     def get_shares(self) -> np.ndarray:
@@ -83,28 +79,9 @@ class EmMethodNV(Func):
         res = self.stocks_ret.T.values[nums]
         return leaders, res
 
-    def fast_plot(self) -> plt.plot:
-        """
-        <DESCRIPTION>
-        Fast equal weight replica and origin plotting.
-        """
-        leaders = self.get_matched_returns()[1]
-        replica = pd.DataFrame(leaders).mean().cumsum()
-        origin = self.stocks_ret.mean(axis=1).cumsum()
-        idx = self.idx.pct_change().cumsum()
-        replica.index = origin.index
-
-        plt.figure(figsize=(15, 5))
-        plt.plot(replica, label='REPLICA')
-        plt.plot(origin, label='ORIGIN')
-        plt.plot(idx, label='IDX')
-        plt.legend(loc='best')
-        plt.show()
-
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y15')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y3')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
     method = EmMethodNV(idx, stocks)
-    method.fast_plot()

@@ -8,7 +8,7 @@ import datetime
 import itertools
 from pathlib import Path
 
-from empirical_weights_FL import *
+from empirical_weights_NV import *
 
 
 # LOCATE DIRECTORY
@@ -21,15 +21,15 @@ def locate_dir(dir_name):
 freq_1 = 125
 freq_2 = 5
 date = datetime.date.today()
-p_val = 0.05
+num = 100
 start_date = '2011-01-01'
 
 
-# RUNNER_{freq_1}__{freq_2}_{date}_{p_val}
-dir_global = "RUNNER_FL_{}_{}_{}_p_val_{}".format(
-    freq_1, freq_2, date, p_val)
+# RUNNER_{freq_1}__{freq_2}_{date}_{num}
+dir_global = "RUNNER_NV_{}_{}_{}_num_{}".format(
+    freq_1, freq_2, date, num)
 
-locate_dir("RUNNER_GRAPHS_FL")
+locate_dir("RUNNER_GRAPHS_NV")
 
 
 class DataSplit:
@@ -80,10 +80,9 @@ class DataSplit:
         return res
 
 
-class MethodRunnerFL(Func):
+class MethodRunnerNV(Func):
     def __init__(self,
-                 F_max: int = 30,
-                 EV: float = 0.9,
+                 stocks_num: int = 100,
                  mkt: str = 'KOSPI200',
                  date: str = 'Y15',
                  idx_weight: str = 'EQ'
@@ -93,14 +92,13 @@ class MethodRunnerFL(Func):
         Run from leader stock selection to weight optimization.
 
         <PARAMETER>
-        Same as EmMethodFL and DataLoader.
+        Same as EmMethodNV and DataLoader.
 
         <CONSTRUCTOR>
         Same as DataSplit.
         """
         super().__init__()
-        self.F_max = F_max
-        self.EV = EV
+        self.stocks_num = stocks_num
         self.mkt = mkt
         self.date = date
         self.idx_weight = idx_weight
@@ -125,7 +123,6 @@ class MethodRunnerFL(Func):
         res = []
         count = 0
         shares_count = []
-        F_nums_count = []
         weights_count = []
         success_count = 0
         sample_division = -freq_2
@@ -143,7 +140,7 @@ class MethodRunnerFL(Func):
             print("PREPROCESS DONE. MOVING ON...")
 
             in_sample = stocks.iloc[:sample_division]
-            out_sample_ret = stocks.pct_change().iloc[sample_division-1:-1]
+            out_sample_ret = stocks.pct_change().iloc[sample_division:]
             if self.start_date_adj is None:
                 self.start_date_adj = out_sample_ret.index[0]
             else:
@@ -156,10 +153,9 @@ class MethodRunnerFL(Func):
                 break
 
             while True:
-                weights = EmWeightsFL(idx=in_sample_idx,
+                weights = EmWeightsNV(idx=in_sample_idx,
                                       stocks=in_sample,
-                                      F_max=self.F_max,
-                                      EV=self.EV)
+                                      stocks_num=self.stocks_num)
 
                 opt_weights, opt_res, save = weights.optimize()
                 if isinstance(opt_res, int):
@@ -184,21 +180,16 @@ class MethodRunnerFL(Func):
 
             res.append(out_sample_res)
             shares_count.append(weights.shares_n)
-            F_nums_count.append(weights.F_nums)
             weights_count.append(opt_weights)
 
             count += 1
             print("ATTEMPT {} OF {} COMPLETED. MOVING ON...".format(
                 count, len(self.splits)))
-            # pd.DataFrame(out_sample_res).to_pickle(
-            #     "./{}/replica_{}_{}.pkl".format(dir_global, count, self.date))
             pd.DataFrame(weights.get_matched_rows()).to_pickle(
                 "./{}/replica_matched_{}_{}.pkl".format(dir_global, count, self.date))
 
         pd.DataFrame(shares_count).to_pickle(
             "./{}/shares_count_{}.pkl".format(dir_global, self.date))
-        pd.DataFrame(F_nums_count).to_pickle(
-            "./{}/F_nums_count_{}.pkl".format(dir_global, self.date))
         pd.DataFrame(weights_save).to_pickle(
             "./{}/weights_save_{}.pkl".format(dir_global, self.date))
 
@@ -281,26 +272,26 @@ class MethodRunnerFL(Func):
         #                  color='black',
         #                  rotation=45)
         plt.savefig(
-            './RUNNER_GRAPHS_FL/{}.jpg'.format(dir_global), format='jpeg')
+            './RUNNER_GRAPHS_NV/{}.jpg'.format(dir_global), format='jpeg')
         # plt.show()
 
 
 if __name__ == "__main__":
     freq_1s = [250, 375, 125]
-    freq_2s = [20]
+    freq_2s = [5, 10, 15]
     for val_1, val_2 in itertools.product(freq_1s, freq_2s):
         freq_1 = val_1
         freq_2 = val_2
-        dir_global = "RUNNER_FL_{}_{}_{}_p_val_{}".format(
-            freq_1, freq_2, date, p_val)
+        dir_global = "RUNNER_NV_{}_{}_{}_num_{}".format(
+            freq_1, freq_2, date, num)
         locate_dir("./{}/".format(dir_global))
 
-        runner = MethodRunnerFL(date='Y15')
+        runner = MethodRunnerNV(date='Y15')
         if os.path.exists('./{}/'.format(dir_global)):
             res_df, shares_count = runner.runner()
             runner.runner_plot(init_price=100)
             print("DONE. MOVING ON...")
 
-        # runner = MethodRunnerFL(date='Y5')
+        # runner = MethodRunnerNV(date='Y5')
         # res_df, shares_count = runner.runner()
         # runner.runner_plot(init_price=100)

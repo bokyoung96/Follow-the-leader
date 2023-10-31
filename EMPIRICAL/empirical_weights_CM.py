@@ -3,7 +3,7 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Empirical Analysis
 """
-from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
 from empirical_method_CM import *
@@ -87,7 +87,7 @@ class EmWeightsCM(EmMethodCM):
         init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1).iloc[-1]
 
         # NOTE: PRICE
-        # init_stocks_ret = self.stocks.iloc[-1, :]
+        # init_stocks_ret = self.stocks.iloc[-1, :].mean()
         return init_stocks_ret
 
     # def const_1(self, x: np.ndarray, i: int) -> np.ndarray:
@@ -118,18 +118,6 @@ class EmWeightsCM(EmMethodCM):
         """
         x = x.reshape((1, -1))
 
-        # NOTE: VALUE-ERROR INF
-        # scaler = MinMaxScaler()
-
-        # replica_idx = (pd.DataFrame(
-        #     1 + np.dot(x, self.leaders_ret)).T.cumprod() - 1).values
-        # origin_idx = ((1 + self.idx_ret).cumprod() - 1).values
-
-        # replica_idx = scaler.fit_transform(
-        #     replica_idx.reshape(-1, 1)).flatten()
-        # origin_idx = scaler.fit_transform(
-        #     origin_idx.reshape(-1, 1)).flatten()
-
         # NOTE: WELL-WORKING IN OUT-SAMPLE DATAS
         replica_idx = pd.DataFrame(
             np.dot(x, self.leaders_ret)).values
@@ -155,7 +143,7 @@ class EmWeightsCM(EmMethodCM):
         """
         weights_init = np.full((1, self.shares_n), 1/self.shares_n).flatten()
 
-        # bounds = [(0, None) for _ in range(self.shares_n)]
+        bounds = [(-1, 1) for _ in range(self.shares_n)]
         if self.shares_n == 1:
             print("***** 1 STOCK INVESTED: OPTIMIZATION NOT REQUIRED *****")
             optimal_weights = weights_init
@@ -183,9 +171,9 @@ class EmWeightsCM(EmMethodCM):
                               weights_init,
                               method='SLSQP',
                               constraints=consts,
-                              # bounds=bounds,
+                              bounds=bounds,
                               options={'maxiter': 1000,
-                                       'ftol': 1e-6},
+                                       'ftol': 1e-3},
                               callback=callback_func)
 
             optimal_weights = result.x.reshape((1, -1))
