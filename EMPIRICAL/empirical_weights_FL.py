@@ -3,7 +3,7 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Empirical Analysis
 """
-from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
 from empirical_method_FL import *
@@ -29,6 +29,9 @@ class EmWeightsFL(EmMethodFL):
         """
         super().__init__(idx, stocks, F_max, EV)
         self.leaders = self.get_shares()
+
+        self.stocks = self.stocks / 100
+
         self.leaders_shares = np.array(
             self.stocks.T.iloc[self.get_matched_rows(), :].reset_index(drop=True)).astype(np.float64)
         self.N = len(self.stocks.T)
@@ -86,15 +89,15 @@ class EmWeightsFL(EmMethodFL):
         init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1).iloc[-1]
 
         # NOTE: PRICE
-        # init_stocks_ret = self.stocks.iloc[-1, :]
+        # init_stocks_ret = self.stocks.iloc[-1, :].mean()
         return init_stocks_ret
 
-    # def const_1(self, x: np.ndarray) -> np.ndarray:
+    # def const_1(self, x: np.ndarray, i: int) -> np.ndarray:
     #     """
     #     <DESCRIPTION>
     #     Get factor spanning constraint.
     #     """
-    #     return (self.const_replica_FL(x) - self.const_idx_FL).flatten()
+    #     return (self.const_replica_FL(x) - self.const_idx_FL).flatten()[i]
 
     def const_1(self, x: np.ndarray) -> np.ndarray:
         """
@@ -116,18 +119,6 @@ class EmWeightsFL(EmMethodFL):
         Get objective function.
         """
         x = x.reshape((1, -1))
-
-        # NOTE: VALUE-ERROR INF
-        # scaler = MinMaxScaler()
-
-        # replica_idx = (pd.DataFrame(
-        #     1 + np.dot(x, self.leaders_ret)).T.cumprod() - 1).values
-        # origin_idx = ((1 + self.idx_ret).cumprod() - 1).values
-
-        # replica_idx = scaler.fit_transform(
-        #     replica_idx.reshape(-1, 1)).flatten()
-        # origin_idx = scaler.fit_transform(
-        #     origin_idx.reshape(-1, 1)).flatten()
 
         # NOTE: WELL-WORKING IN OUT-SAMPLE DATAS
         replica_idx = pd.DataFrame(
@@ -154,11 +145,12 @@ class EmWeightsFL(EmMethodFL):
         """
         weights_init = np.full((1, self.shares_n), 1/self.shares_n).flatten()
 
-        # bounds = [(0, None) for _ in range(self.shares_n)]
+        # bounds = [(-1, 1) for _ in range(self.shares_n)]
         if self.shares_n == 1:
             print("***** 1 STOCK INVESTED: OPTIMIZATION NOT REQUIRED *****")
-            optimal_weights = weights_init
-            return optimal_weights
+            optimal_weights = weights_init.reshape((1, -1))
+            result = 0
+
         else:
             print("***** STARTING OPTIMIZATION FOR WEIGHTS *****")
 
@@ -183,19 +175,19 @@ class EmWeightsFL(EmMethodFL):
                               method='SLSQP',
                               constraints=consts,
                               #   bounds=bounds,
-                              options={'maxiter': 1000,
-                                       'ftol': 1e-4},
+                              options={'maxiter': 10000,
+                                       'ftol': 1e-6},
                               callback=callback_func)
 
             optimal_weights = result.x.reshape((1, -1))
 
-            # WEIGHT SAVE POINT
-            optimal_weights_df = pd.DataFrame(columns=self.stocks.columns)
-            optimal_weights_save = pd.DataFrame(optimal_weights,
-                                                columns=self.stocks.T.iloc[self.get_matched_rows()].index)
-            save = optimal_weights_df.combine_first(optimal_weights_save)[
-                self.stocks.columns]
-            return optimal_weights, result, save
+        # WEIGHT SAVE POINT
+        optimal_weights_df = pd.DataFrame(columns=self.stocks.columns)
+        optimal_weights_save = pd.DataFrame(optimal_weights,
+                                            columns=self.stocks.T.iloc[self.get_matched_rows()].index)
+        save = optimal_weights_df.combine_first(optimal_weights_save)[
+            self.stocks.columns]
+        return optimal_weights, result, save
 
     def fast_plot(self) -> plt.plot:
         """
@@ -206,6 +198,8 @@ class EmWeightsFL(EmMethodFL):
         replica = pd.DataFrame(
             1 + np.dot(opt_weights, self.leaders)).T.cumprod() - 1
         origin = (1 + self.idx_ret).cumprod() - 1
+
+        # replica = pd.DataFrame(np.dot(opt_weights, self.leaders_shares))
         replica.index = origin.index
 
         plt.figure(figsize=(15, 5))

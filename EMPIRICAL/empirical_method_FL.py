@@ -3,9 +3,7 @@ Article: Follow the leader: Index tracking with factor models
 
 Topic: Empirical Analysis
 """
-import matplotlib.pyplot as plt
 from tqdm import tqdm
-from statsmodels.multivariate.pca import PCA as stPCA
 
 from empirical_func import *
 from empirical_loader import *
@@ -71,6 +69,17 @@ class EmMethodFL(Func):
         """
         self.F_nums = self.func_bai_ng(
             self.stocks_ret, ic_method=2, max_factor=self.F_max)[0]
+
+        pca, PC = self.func_pca(n_components=self.F_max,
+                                df=self.stocks_ret)
+        EV_ratio = np.cumsum(pca.explained_variance_ratio_)
+        F_mins = np.where(EV_ratio >= (EV_ratio[0] * 1.5))
+        F_min = F_mins[0][0] if F_mins[0].size > 0 else self.F_max
+
+        if F_min > self.F_nums:
+            self.F_nums = F_min
+        else:
+            pass
         print("***** BAI & NG COMPLETE: {} FACTORS IN USE *****".format(self.F_nums))
 
         pca, PC = self.func_pca(n_components=self.F_nums,
@@ -101,7 +110,7 @@ class EmMethodFL(Func):
         for factor in factors.T:
             corr = self.stocks_ret.apply(
                 lambda col: np.corrcoef(col, factor)[0, 1], axis=0)
-            temp.append(corr)
+            temp.append(np.abs(corr))
 
         res = []
         for item in temp:
@@ -127,39 +136,28 @@ class EmMethodFL(Func):
         while True:
             factor = None
             factor = np.vstack((leaders, factor_input))
-            model = self.func_regression(factor.T, shares.T)
+            model = sm.OLS(shares.T, factor.T).fit()
             resid = model.resid
 
-            # F_nums, ic = self.func_bai_ng(
-            #     resid, ic_method=2, max_factor=self.F_max)
-
-            pca = stPCA(data=resid, ncomp=self.F_max,
-                        standardize=False)
-            F_nums = np.argmin(pca.ic['IC_p2'])
+            F_nums, ic = self.func_bai_ng(
+                resid, ic_method=2, max_factor=self.F_max)
 
             if F_nums == 0:
                 break
             else:
                 print("FACTOR LEFT: {}! IC: {} -> MOVING ON...".format(F_nums,
-                      pca.ic['IC_p2'][F_nums]))
-                # print("FACTOR LEFT: {}! IC: {} -> MOVING ON...".format(F_nums,
-                #       ic))
-                if count == 1:
-                    const_reg = 0
-                else:
-                    const_reg = 1
-                leaders_reg = np.vstack(
-                    (np.ones(leaders.shape[const_reg]), leaders))
-                model_add = self.func_regression(leaders_reg.T, factors)
+                      ic))
+                model_add = self.func_regression(leaders.T, factors)
                 resid_add = model_add.resid
 
                 temp_corr = []
                 for share in shares_adj.values:
                     corr = np.corrcoef(share, resid_add)[0, 1]
                     temp_corr.append(corr)
+                temp_corr = np.abs(temp_corr)
 
                 rank = self.func_rank(temp_corr)
-                if len(rank) >= 100:
+                if len(rank) >= 1:
                     share_add = shares_adj.values[np.argsort(rank)][0]
                     leaders = np.vstack((leaders, share_add))
 
@@ -179,28 +177,29 @@ class EmMethodFL(Func):
         Process done by regression, explained specifically in the article.
         self.get_shares() will iterate self.get_shares_temp() function.
         """
-        factors_init = self.F_pca.T
+        factors_init = self.F_pca.T.copy()
         factor_input = factors_init[~(factors_init == factors).all(axis=1)]
 
         leaders = shares.values[0]
+
         shares = shares.iloc[1:, :]
 
-        count = 1
+        count = 0
         while True:
             temp = []
 
             factor = np.vstack((leaders, factor_input))
             for share in shares.values:
-                model = self.func_regression(factor.T, share)
+                model = sm.OLS(share, factor.T).fit()
                 resid = model.resid
-                model_resid = self.func_regression(factors_init.T, resid)
+                model_resid = sm.OLS(resid, factors_init.T).fit()
 
-                if all(model_resid.pvalues[1:] > 0.05):
+                if all(model_resid.pvalues > 0.1):
                     temp.append(True)
                 else:
                     temp.append(False)
 
-            if any(item == False for item in temp):
+            if not all(temp):
                 model_add = self.func_regression(leaders.T, factors)
                 resid_add = model_add.resid
 
@@ -208,6 +207,7 @@ class EmMethodFL(Func):
                 for share in shares.values:
                     corr = np.corrcoef(share, resid_add)[0, 1]
                     temp_corr.append(corr)
+                temp_corr = np.abs(temp_corr)
 
                 rank = self.func_rank(temp_corr)
                 if len(rank) >= 1:
@@ -216,9 +216,11 @@ class EmMethodFL(Func):
 
                     shares = shares[~shares.isin(
                         share_add.tolist()).all(axis=1)]
+
                 else:
                     raise AssertionError("ERROR: FACTOR NOT EXPLAINED!")
                 count += 1
+                print("TRYING WITH {} STOCKS! MOVING ON...".format(count))
             else:
                 break
         return leaders
@@ -232,14 +234,15 @@ class EmMethodFL(Func):
         Process done by regression, explained specifically in the article.
         self.get_shares() will iterate self.get_shares_temp() function.
         """
-        try:
-            leaders = self.get_shares_temp(factors, shares)
-        except AssertionError:
-            print("ASSERTION ERROR OCCURRED: MOVING ON...")
-            leaders = self.get_shares_temp_p_val(factors, shares)
-        except LinAlgError:
-            print("LINALG ERROR OCCURRED: MOVING ON...")
-            leaders = self.get_shares_temp_p_val(factors, shares)
+        leaders = self.get_shares_temp_p_val(factors, shares)
+        # try:
+        #     leaders = self.get_shares_temp(factors, shares)
+        # except AssertionError:
+        #     print("ASSERTION ERROR OCCURRED: MOVING ON...")
+        #     leaders = self.get_shares_temp_p_val(factors, shares)
+        # except LinAlgError:
+        #     print("LINALG ERROR OCCURRED: MOVING ON...")
+        #     leaders = self.get_shares_temp_p_val(factors, shares)
         return leaders
 
     @time_spent_decorator
@@ -268,7 +271,10 @@ class EmMethodFL(Func):
         leaders = np.unique(np.vstack(res), axis=0)
 
         print("\n*****PROGRESS FINISHED*****\n")
-        self.shares_n = len(leaders)
+        if len(leaders.shape) == 1:
+            self.shares_n = len(leaders.shape)
+        else:
+            self.shares_n = len(leaders)
         print("\n***** NUMBER OF SHARES: {} *****\n".format(self.shares_n))
         return leaders
 

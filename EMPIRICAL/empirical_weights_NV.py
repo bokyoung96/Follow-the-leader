@@ -8,7 +8,7 @@ from scipy.optimize import minimize
 from empirical_method_NV import *
 
 
-class EmWeightsCM(EmMethodNV):
+class EmWeightsNV(EmMethodNV):
     def __init__(self,
                  idx: pd.DataFrame,
                  stocks: pd.Series,
@@ -51,8 +51,10 @@ class EmWeightsCM(EmMethodNV):
         <DESCRIPTION>
         Get the replicated index term in initial value constraint.
         """
-        init_leaders = pd.DataFrame(
-            self.leaders_ret.cumsum(axis=1)).values[:, -1]
+        # init_leaders = pd.DataFrame(
+        #     self.leaders_ret.cumsum(axis=1)).iloc[:, -1]
+        init_leaders = ((1 + pd.DataFrame(self.leaders_ret)
+                         ).cumprod(axis=1) - 1).iloc[:, -1]
         # NOTE: PRICE
         # init_leaders = self.leaders_shares[:, -1]
         return np.dot(x, init_leaders)
@@ -63,13 +65,11 @@ class EmWeightsCM(EmMethodNV):
         <DESCRIPTION>
         Get the original index term in initial value constraint.
         """
-        init_stocks_ret = self.idx_ret.cumsum()[-1]
-        # NOTE: Index return created from constituents.
-        # init_stocks_ret = self.stocks_ret.cumsum(axis=0).iloc[-1, :]
+        # init_stocks_ret = self.idx_ret.cumsum()[-1]
+        init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1).iloc[-1]
+
         # NOTE: PRICE
         # init_stocks_ret = self.stocks.iloc[-1, :]
-        # NOTE: Index return created from constituents.
-        # return np.dot(self.weights_idx, init_stocks_ret)
         return init_stocks_ret
 
     def const_1(self, x: np.ndarray) -> np.ndarray:
@@ -86,11 +86,10 @@ class EmWeightsCM(EmMethodNV):
         """
         x = x.reshape((1, -1))
 
+        # NOTE: WELL-WORKING IN OUT-SAMPLE DATAS
         replica_idx = pd.DataFrame(
-            np.dot(x, self.leaders_ret)).cumsum(axis=1).values
-        # origin_idx = pd.DataFrame(
-        #     np.dot(self.weights_idx, self.stocks_ret.T)).cumsum().values
-        origin_idx = self.idx_ret.cumsum(axis=0).values
+            np.dot(x, self.leaders_ret)).values
+        origin_idx = self.idx_ret.values
 
         # NOTE: PRICE
         # replica_idx = np.dot(x, self.leaders_shares)
@@ -112,36 +111,55 @@ class EmWeightsCM(EmMethodNV):
         """
         weights_init = np.full((1, self.shares_n), 1/self.shares_n).flatten()
 
-        # bounds = [(0, None) for _ in range(self.shares_n)]
+        bounds = [(-1, 1) for _ in range(self.shares_n)]
         if self.shares_n == 1:
             print("***** 1 STOCK INVESTED: OPTIMIZATION NOT REQUIRED *****")
-            optimal_weights = weights_init
-            return optimal_weights
+            optimal_weights = weights_init.reshape((1, -1))
+            result = 0
+
         else:
             print("***** STARTING OPTIMIZATION FOR WEIGHTS *****")
 
             consts = [{'type': 'eq', 'fun': self.const_1}]
 
+            def create_callback():
+                iter_count = 0
+
+                def callback(x):
+                    nonlocal iter_count
+                    iter_count += 1
+                    print(f"CURRENT ITER: {iter_count}")
+                return callback
+
+            callback_func = create_callback()
             result = minimize(lambda x: self.obj(x),
                               weights_init,
                               method='SLSQP',
                               constraints=consts,
-                              # bounds=bounds,
-                              options={'maxiter': 1000})
+                              bounds=bounds,
+                              options={'maxiter': 1000,
+                                       'ftol': 1e-6},
+                              callback=callback_func)
 
             optimal_weights = result.x.reshape((1, -1))
-            return optimal_weights, result
+
+        # WEIGHT SAVE POINT
+        optimal_weights_df = pd.DataFrame(columns=self.stocks.columns)
+        optimal_weights_save = pd.DataFrame(optimal_weights,
+                                            columns=self.stocks.T.iloc[self.get_matched_rows()].index)
+        save = optimal_weights_df.combine_first(optimal_weights_save)[
+            self.stocks.columns]
+        return optimal_weights, result, save
 
     def fast_plot(self) -> plt.plot:
         """
         <DESCRIPTION>
         Fast equal weight replica and origin plotting.
         """
-        opt_weights, res = self.optimize()
+        opt_weights, res, save = self.optimize()
         replica = pd.DataFrame(
-            np.dot(opt_weights, self.leaders_ret)).T.cumsum()
-        origin = self.idx_ret.cumsum()
-        # origin = self.stocks_ret.mean(axis=1).cumsum()
+            1 + np.dot(opt_weights, self.leaders_ret)).T.cumprod() - 1
+        origin = (1 + self.idx_ret).cumprod() - 1
         replica.index = origin.index
 
         plt.figure(figsize=(15, 5))
@@ -149,12 +167,12 @@ class EmWeightsCM(EmMethodNV):
         plt.plot(origin, label='ORIGIN')
         plt.legend(loc='best')
         plt.show()
-        return opt_weights, res
+        return opt_weights, res, save
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y5')
+    data_loader = DataLoader(mkt='KOSPI200', date='Y3')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
-    weights = EmWeightsCM(idx, stocks)
-    opt_weights, res = weights.fast_plot()
+    weights = EmWeightsNV(idx, stocks)
+    opt_weights, res, save = weights.fast_plot()

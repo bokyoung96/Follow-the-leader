@@ -7,10 +7,7 @@ import math
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-import sklearn.pipeline as skpipe
-import sklearn.decomposition as skd
-import sklearn.preprocessing as skp
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, TruncatedSVD
 
 
 class Func:
@@ -35,39 +32,33 @@ class Func:
         NT1 = N + T
 
         if ic_method == 1:
-            CT = [i * math.log(NT / NT1) * NT1 / NT for i in range(max_factor)]
+            CT = [i * math.log(NT / NT1) * NT1 /
+                  NT for i in range(max_factor+1)]
         elif ic_method == 2:
             CT = [i * math.log(min(N, T)) * NT1 /
-                  NT for i in range(max_factor)]
+                  NT for i in range(max_factor+1)]
         elif ic_method == 3:
             CT = [i * math.log(min(N, T)) / min(N, T)
-                  for i in range(max_factor)]
+                  for i in range(max_factor+1)]
         else:
             raise ValueError("ic must be either 1, 2 or 3")
 
-        # scaler = skp.StandardScaler()
-        # data = scaler.fit_transform(data)
-
-        pipe = skpipe.Pipeline(
-            [('Factors', skd.TruncatedSVD(max_factor, algorithm='arpack'))])
-        F = pipe.fit_transform(data)
-        Lambda = pipe['Factors'].components_
-
-        # pca = PCA(n_components=max_factor)
-        # F = pca.fit_transform(data)
-        # Lambda = pca.components_
+        truncated_svd = TruncatedSVD(
+            n_components=max_factor, algorithm='arpack')
+        F = truncated_svd.fit_transform(data)
+        Lambda = truncated_svd.components_
 
         def V(X, F, Lambda):
             """
             <DESCRIPTION>
             Explained Variance of X by factors F with loadings Lambda.
             """
-            T, N = X.shape
-            NT = N*T
-            return np.linalg.norm(X - F @ Lambda, 2)/NT
+            residual_matrix = X - F @ Lambda
+            return np.linalg.norm(residual_matrix, 'fro') ** 2 / NT
 
-        Vhat = [V(data, F[:, 0:i], Lambda[0:i, :]) for i in range(max_factor)]
-        IC = np.log(Vhat) + CT
+        Vhat = [V(data, F[:, 0:i], Lambda[0:i, :])
+                for i in range(0, max_factor+1)]
+        IC = np.log(Vhat) + np.array(CT)
         Nfactor = np.argmin(IC)
         return Nfactor, IC[Nfactor]
 
