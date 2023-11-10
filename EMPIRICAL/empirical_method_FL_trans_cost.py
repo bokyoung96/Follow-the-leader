@@ -11,23 +11,30 @@ from numpy.linalg import LinAlgError
 from time_spent_decorator import time_spent_decorator
 
 
-class EmMethodFL(Func):
+class EmMethodSaveFL(Func):
+    leaders_window = None
+    window_count = 1
+    leaders_names = None
+
     def __init__(self,
                  idx: pd.Series,
                  stocks: pd.DataFrame,
                  F_max: int = 30,
                  EV: float = 0.90,
+                 rolls: int = 9
                  ):
         super().__init__()
         """
         <DESCRIPTION>
         Get shares explaining the factors of the index under Follow-the-Leader method.
+        1st window gets hold for <rolls> period.
 
         <PARAMETER>
         idx: Index data.
         stocks: Stock data.
         F_max: Maximum possible number of factors in Bai and Ng method.
         EV: Explained variance cutoff point for PCA analysis.
+        rolls: Period to hold the first window.
 
         <CONSTRUCTOR>
         stocks_ret: Return data of stocks.
@@ -41,6 +48,7 @@ class EmMethodFL(Func):
         self.stocks = stocks.astype(np.float64)
         self.F_max = F_max
         self.EV = EV
+        self.rolls = rolls
 
         self.stocks_ret = self.stocks.copy()
         self.stocks_ret = self.stocks_ret.pct_change(axis=0).iloc[1:, :]
@@ -126,8 +134,20 @@ class EmMethodFL(Func):
         factors_init = self.F_pca.T
         factor_input = factors_init[~(factors_init == factors).all(axis=1)]
 
-        leaders = shares.values[0]
-        shares_adj = shares.iloc[1:, :]
+        if EmMethodSaveFL.window_count > 1:
+            leaders = pd.DataFrame(EmMethodSaveFL.leaders_window,
+                                   index=EmMethodSaveFL.leaders_names)
+            leaders = leaders[leaders.index.isin(self.stocks_ret.T.index)]
+            leaders = self.stocks_ret.T.loc[leaders.index.values]
+            EmMethodSaveFL.leaders_window = leaders.values
+            EmMethodSaveFL.leaders_names = leaders.index
+
+            shares = shares[~shares.index.isin(leaders.index)]
+            leaders = leaders.values
+            print("***** LEADERS FROM 1ST WINDOW USED INITIALLY *****")
+        else:
+            leaders = shares.values[0]
+            shares_adj = shares.iloc[1:, :]
 
         count = 1
         while True:
@@ -177,9 +197,20 @@ class EmMethodFL(Func):
         factors_init = self.F_pca.T.copy()
         factor_input = factors_init[~(factors_init == factors).all(axis=1)]
 
-        leaders = shares.values[0]
+        if EmMethodSaveFL.window_count > 1:
+            leaders = pd.DataFrame(EmMethodSaveFL.leaders_window,
+                                   index=EmMethodSaveFL.leaders_names)
+            leaders = leaders[leaders.index.isin(self.stocks_ret.T.index)]
+            leaders = self.stocks_ret.T.loc[leaders.index.values]
+            EmMethodSaveFL.leaders_window = leaders.values
+            EmMethodSaveFL.leaders_names = leaders.index
 
-        shares = shares.iloc[1:, :]
+            shares = shares[~shares.index.isin(leaders.index)]
+            leaders = leaders.values
+            print("***** LEADERS FROM 1ST WINDOW USED INITIALLY *****")
+        else:
+            leaders = shares.values[0]
+            shares = shares.iloc[1:, :]
 
         count = 0
         while True:
@@ -273,6 +304,24 @@ class EmMethodFL(Func):
         else:
             self.shares_n = len(leaders)
         print("\n***** NUMBER OF SHARES: {} *****\n".format(self.shares_n))
+
+        if EmMethodSaveFL.window_count == 1:
+            EmMethodSaveFL.leaders_window = leaders
+            EmMethodSaveFL.window_count += 1
+            rows = []
+            for row in leaders:
+                matched = np.where(
+                    (self.stocks_ret.T.values == row).all(axis=1))[0]
+                rows.append(matched)
+            names = np.concatenate(rows, axis=0)
+            EmMethodSaveFL.leaders_names = self.stocks.T.iloc[names].index
+
+        elif EmMethodSaveFL.window_count == self.rolls:
+            EmMethodSaveFL.window_count = 1
+            print("***** LEADERS WINDOW COUNT INITIALIZED *****")
+            print("\n***** LEADERS WILL BE RE-DEFINED *****\n")
+        else:
+            EmMethodSaveFL.window_count += 1
         return leaders
 
 
@@ -280,4 +329,4 @@ if __name__ == "__main__":
     data_loader = DataLoader(mkt='KOSPI200', date='Y1')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
-    method = EmMethodFL(idx, stocks)
+    method = EmMethodSaveFL(idx, stocks)

@@ -8,7 +8,7 @@ import datetime
 import itertools
 from pathlib import Path
 
-from empirical_weights_FL import *
+from empirical_weights_FL_trans_cost import *
 
 
 # LOCATE DIRECTORY
@@ -21,6 +21,7 @@ def locate_dir(dir_name):
 freq_1 = 250
 freq_2 = 20
 p_val = 0.1
+rolls = 12
 start_date = '2011-01-01'
 
 
@@ -28,7 +29,7 @@ start_date = '2011-01-01'
 dir_global = "RUNNER_FL_{}_{}_p_val_{}".format(
     freq_1, freq_2, p_val)
 
-locate_dir("RUNNER_GRAPHS_FL")
+locate_dir("RUNNER_GRAPHS_FL_TRS")
 
 
 class DataSplit:
@@ -83,12 +84,13 @@ class MethodRunnerFL(Func):
     def __init__(self,
                  F_max: int = 30,
                  EV: float = 0.9,
+                 rolls: int = 12,
                  mkt: str = 'KOSPI200',
                  date: str = 'Y15',
                  idx_weight: str = 'EQ'
                  ):
         """
-        <DESCRIPTION<
+        <DESCRIPTION>
         Run from leader stock selection to weight optimization.
 
         <PARAMETER>
@@ -100,6 +102,7 @@ class MethodRunnerFL(Func):
         super().__init__()
         self.F_max = F_max
         self.EV = EV
+        self.rolls = rolls
         self.mkt = mkt
         self.date = date
         self.idx_weight = idx_weight
@@ -155,10 +158,11 @@ class MethodRunnerFL(Func):
                 break
 
             while True:
-                weights = EmWeightsFL(idx=in_sample_idx,
-                                      stocks=in_sample,
-                                      F_max=self.F_max,
-                                      EV=self.EV)
+                weights = EmWeightsSaveFL(idx=in_sample_idx,
+                                          stocks=in_sample,
+                                          F_max=self.F_max,
+                                          EV=self.EV,
+                                          rolls=self.rolls)
 
                 opt_weights, opt_res, save = weights.optimize()
                 if isinstance(opt_res, int):
@@ -280,7 +284,7 @@ class MethodRunnerFL(Func):
         #                  color='black',
         #                  rotation=45)
         plt.savefig(
-            './RUNNER_GRAPHS_FL/{}.jpg'.format(dir_global), format='jpeg')
+            './RUNNER_GRAPHS_FL_TRS/{}.jpg'.format(dir_global), format='jpeg')
         # plt.show()
 
 
@@ -290,8 +294,8 @@ if __name__ == "__main__":
     for val_1, val_2 in itertools.product(freq_1s, freq_2s):
         freq_1 = val_1
         freq_2 = val_2
-        dir_global = "RUNNER_FL_{}_{}_p_val_{}".format(
-            freq_1, freq_2, p_val)
+        dir_global = "RUNNER_FL_{}_{}_p_val_{}_{}".format(
+            freq_1, freq_2, p_val, rolls)
         locate_dir("./{}/".format(dir_global))
 
         runner = MethodRunnerFL(date='Y15')

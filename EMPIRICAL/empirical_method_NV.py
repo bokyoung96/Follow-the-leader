@@ -52,7 +52,7 @@ class EmMethodNV(Func):
         """
         corr = self.stocks.apply(
             lambda col: np.corrcoef(col, self.idx)[0, 1], axis=0)
-        rank = self.func_rank(corr)
+        rank = self.func_rank(np.abs(corr))
 
         leaders = self.stocks.iloc[:, np.argsort(rank)]
         leaders = leaders.iloc[:, :self.stocks_num].T

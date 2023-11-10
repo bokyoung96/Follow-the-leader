@@ -6,37 +6,37 @@ Topic: Empirical Analysis
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
-from empirical_method_FL import *
+from empirical_method_FL_trans_cost import *
 
 
-class EmWeightsFL(EmMethodFL):
-
+class EmWeightsSaveFL(EmMethodSaveFL):
     def __init__(self,
                  idx: pd.DataFrame,
                  stocks: pd.Series,
                  F_max: int = 30,
-                 EV: float = 0.95):
+                 EV: float = 0.95,
+                 rolls: int = 9):
         """
         <DESCRIPTION>
         Optimize the weight of replication index under factor spanning constraint and initial value constraint.
+        1st window gets hold for <rolls> period.
+
 
         <PARAMETER>
-        Same as EmMethodFL class.
+        Same as EmMethodSaveFL class.
 
         <CONSTRUCTOR>
         leaders: Selected shares' returns explaining each factors.
         N: Number of constituents in the index.
         weights_idx: Weight vector for original index constituted by equal-weights.
         """
-        super().__init__(idx, stocks, F_max, EV)
+        super().__init__(idx, stocks, F_max, EV, rolls)
         self.leaders = self.get_shares()
 
         self.leaders_shares = np.array(
             self.stocks.T.iloc[self.get_matched_rows(), :].reset_index(drop=True)).astype(np.float64)
         self.N = len(self.stocks.T)
         self.weights_idx = np.full((1, self.N), 1/self.N)
-
-        self.idx_first_value = idx[0] / 1000
 
     def get_matched_rows(self):
         """
@@ -49,7 +49,11 @@ class EmWeightsFL(EmMethodFL):
                 (self.stocks_ret.T.values == row).all(axis=1))[0]
             rows.append(matched)
 
-        res = np.concatenate(rows, axis=0)
+        leaders_names_idxer = self.stocks.T.index.get_indexer(
+            EmMethodSaveFL.leaders_names)
+
+        rows = np.concatenate(rows, axis=0)
+        res = np.unique(np.concatenate([leaders_names_idxer, rows]))
         return res
 
     def const_replica_FL(self, x: np.ndarray) -> np.ndarray:
@@ -74,7 +78,7 @@ class EmWeightsFL(EmMethodFL):
         """
         init_leaders = ((1 + pd.DataFrame(self.leaders)
                          ).cumprod(axis=1) - 1).iloc[:, -1]
-        return self.idx_first_value * (1 + np.dot(x, init_leaders))
+        return np.dot(x, init_leaders)
 
     @property
     def const_idx_init(self) -> np.ndarray:
@@ -83,7 +87,7 @@ class EmWeightsFL(EmMethodFL):
         Get the original index term in initial value constraint.
         """
         init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1).iloc[-1]
-        return self.idx_first_value * (1 + init_stocks_ret)
+        return init_stocks_ret
 
     def const_1(self, x: np.ndarray) -> np.ndarray:
         """
@@ -106,9 +110,9 @@ class EmWeightsFL(EmMethodFL):
         """
         x = x.reshape((1, -1))
 
-        replica_idx = self.idx_first_value * \
-            (1 + np.dot(x, self.leaders)).cumprod()
-        origin_idx = self.idx_first_value * (1 + self.idx_ret).cumprod()
+        replica_idx = pd.DataFrame(
+            np.dot(x, self.leaders)).values
+        origin_idx = self.idx_ret.values
 
         obj_value = np.sum((origin_idx - replica_idx) ** 2)
         return obj_value
@@ -192,5 +196,5 @@ if __name__ == "__main__":
     data_loader = DataLoader(mkt='KOSPI200', date='Y1')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
-    weights = EmWeightsFL(idx, stocks)
+    weights = EmWeightsSaveFL(idx, stocks)
     opt_weights, res, save = weights.fast_plot()
