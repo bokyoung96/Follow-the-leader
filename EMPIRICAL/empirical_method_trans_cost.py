@@ -64,5 +64,5 @@ class MethodTransactionCost:
 
 if __name__ == "__main__":
     TC = MethodTransactionCost(
-        file_path='./RUNNER_CM_125_20_2023-10-28_ev_0.9/weights_save_Y15.pkl')
+        file_path='./RUNNER_CM_Y15_ev_0.99/RUNNER_CM_250_20_2023-10-29_ev_0.99/weights_save_Y15.pkl')
     trans_cost = TC.transaction_cost

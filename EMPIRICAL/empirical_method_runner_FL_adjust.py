@@ -8,7 +8,7 @@ import datetime
 import itertools
 from pathlib import Path
 
-from empirical_weights_FL import *
+from empirical_weights_FL_adjust import *
 
 
 # LOCATE DIRECTORY
@@ -28,7 +28,7 @@ start_date = '2011-01-01'
 dir_global = "RUNNER_FL_{}_{}_p_val_{}".format(
     freq_1, freq_2, p_val)
 
-locate_dir("RUNNER_GRAPHS_FL")
+locate_dir("RUNNER_GRAPHS_FL_ADJ")
 
 
 class DataSplit:
@@ -155,10 +155,10 @@ class MethodRunnerFL(Func):
                 break
 
             while True:
-                weights = EmWeightsFL(idx=in_sample_idx,
-                                      stocks=in_sample,
-                                      F_max=self.F_max,
-                                      EV=self.EV)
+                weights = EmWeightsAdjustFL(idx=in_sample_idx,
+                                            stocks=in_sample,
+                                            F_max=self.F_max,
+                                            EV=self.EV)
 
                 opt_weights, opt_res, save = weights.optimize()
                 if isinstance(opt_res, int):
@@ -280,7 +280,7 @@ class MethodRunnerFL(Func):
         #                  color='black',
         #                  rotation=45)
         plt.savefig(
-            './RUNNER_GRAPHS_FL/{}.jpg'.format(dir_global), format='jpeg')
+            './RUNNER_GRAPHS_FL_ADJ/{}.jpg'.format(dir_global), format='jpeg')
         # plt.show()
 
 
@@ -290,7 +290,7 @@ if __name__ == "__main__":
     for val_1, val_2 in itertools.product(freq_1s, freq_2s):
         freq_1 = val_1
         freq_2 = val_2
-        dir_global = "RUNNER_FL_{}_{}_p_val_{}".format(
+        dir_global = "RUNNER_FL_{}_{}_p_val_{}_adj".format(
             freq_1, freq_2, p_val)
         locate_dir("./{}/".format(dir_global))
 

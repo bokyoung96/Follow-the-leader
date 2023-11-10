@@ -20,14 +20,13 @@ def locate_dir(dir_name):
 # FREQUENCY (IN, OUT)
 freq_1 = 125
 freq_2 = 5
-date = datetime.date.today()
 num = 100
 start_date = '2011-01-01'
 
 
 # RUNNER_{freq_1}__{freq_2}_{date}_{num}
-dir_global = "RUNNER_NV_{}_{}_{}_num_{}".format(
-    freq_1, freq_2, date, num)
+dir_global = "RUNNER_NV_{}_{}_num_{}".format(
+    freq_1, freq_2, num)
 
 locate_dir("RUNNER_GRAPHS_NV")
 
@@ -277,13 +276,13 @@ class MethodRunnerNV(Func):
 
 
 if __name__ == "__main__":
-    freq_1s = [250, 375, 125]
-    freq_2s = [5, 10, 15]
+    freq_1s = [500]
+    freq_2s = [5, 10, 15, 20]
     for val_1, val_2 in itertools.product(freq_1s, freq_2s):
         freq_1 = val_1
         freq_2 = val_2
-        dir_global = "RUNNER_NV_{}_{}_{}_num_{}".format(
-            freq_1, freq_2, date, num)
+        dir_global = "RUNNER_NV_{}_{}_num_{}".format(
+            freq_1, freq_2, num)
         locate_dir("./{}/".format(dir_global))
 
         runner = MethodRunnerNV(date='Y15')

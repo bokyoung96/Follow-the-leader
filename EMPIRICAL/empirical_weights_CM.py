@@ -171,9 +171,9 @@ class EmWeightsCM(EmMethodCM):
                               weights_init,
                               method='SLSQP',
                               constraints=consts,
-                              bounds=bounds,
+                              #   bounds=bounds,
                               options={'maxiter': 1000,
-                                       'ftol': 1e-3},
+                                       'ftol': 1e-6},
                               callback=callback_func)
 
             optimal_weights = result.x.reshape((1, -1))

@@ -11,7 +11,7 @@ from numpy.linalg import LinAlgError
 from time_spent_decorator import time_spent_decorator
 
 
-class EmMethodFL(Func):
+class EmMethodAdjustFL(Func):
     def __init__(self,
                  idx: pd.Series,
                  stocks: pd.DataFrame,
@@ -22,6 +22,7 @@ class EmMethodFL(Func):
         """
         <DESCRIPTION>
         Get shares explaining the factors of the index under Follow-the-Leader method.
+        Transaction cost gets reduced for each shares after obtaining factors.
 
         <PARAMETER>
         idx: Index data.
@@ -56,6 +57,13 @@ class EmMethodFL(Func):
         self.shares_n = None
 
         self.get_factors
+
+        # AFTER OBTAINING FACTORS
+        self.const = pd.read_pickle(
+            './KOSPI200_TRANSACTION_COST/KOSPI200_TRANSACTION_COST_Y15.pkl')
+        self.const = self.const[self.stocks_ret.columns].loc[self.stocks_ret.index].fillna(
+            0)
+        self.stocks_ret = self.stocks_ret - self.const
 
     @property
     def get_factors(self) -> np.ndarray:
@@ -280,4 +288,4 @@ if __name__ == "__main__":
     data_loader = DataLoader(mkt='KOSPI200', date='Y1')
     idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
-    method = EmMethodFL(idx, stocks)
+    method = EmMethodAdjustFL(idx, stocks)

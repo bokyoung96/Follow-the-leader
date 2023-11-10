@@ -14,7 +14,7 @@ class EmMethodCM(Func):
     def __init__(self,
                  idx: pd.Series,
                  stocks: pd.DataFrame,
-                 EV: float = 0.99,
+                 EV: float = 0.999,
                  min_R2: float = 0.8):
         super().__init__()
         """
@@ -45,6 +45,7 @@ class EmMethodCM(Func):
         self.stocks = stocks.astype(np.float64)
         self.stocks_scaled = pd.DataFrame(
             self.scaler.fit_transform(self.stocks))
+        self.stocks_scaled = self.stocks
 
         self.stocks_ret = self.stocks.copy()
         # self.stocks_ret = np.log(
