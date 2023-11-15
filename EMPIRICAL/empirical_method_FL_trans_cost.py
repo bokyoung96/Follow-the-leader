@@ -21,7 +21,7 @@ class EmMethodSaveFL(Func):
                  stocks: pd.DataFrame,
                  F_max: int = 30,
                  EV: float = 0.90,
-                 rolls: int = 9
+                 rolls: int = 1000
                  ):
         super().__init__()
         """

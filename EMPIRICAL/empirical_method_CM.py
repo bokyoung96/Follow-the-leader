@@ -45,7 +45,6 @@ class EmMethodCM(Func):
         self.stocks = stocks.astype(np.float64)
         self.stocks_scaled = pd.DataFrame(
             self.scaler.fit_transform(self.stocks))
-        self.stocks_scaled = self.stocks
 
         self.stocks_ret = self.stocks.copy()
         # self.stocks_ret = np.log(

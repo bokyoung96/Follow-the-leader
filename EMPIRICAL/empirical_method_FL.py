@@ -69,14 +69,14 @@ class EmMethodFL(Func):
 
         pca, PC = self.func_pca(n_components=self.F_max,
                                 df=self.stocks_ret)
-        EV_ratio = np.cumsum(pca.explained_variance_ratio_)
-        F_mins = np.where(EV_ratio >= (EV_ratio[0] * 2))
-        F_min = F_mins[0][0] if F_mins[0].size > 0 else self.F_max
+        # EV_ratio = np.cumsum(pca.explained_variance_ratio_)
+        # F_mins = np.where(EV_ratio >= (EV_ratio[0] * 2))
+        # F_min = F_mins[0][0] if F_mins[0].size > 0 else self.F_max
 
-        if F_min > self.F_nums:
-            self.F_nums = F_min
-        else:
-            pass
+        # if F_min > self.F_nums:
+        #     self.F_nums = F_min
+        # else:
+        #     pass
         print("***** BAI & NG COMPLETE: {} FACTORS IN USE *****".format(self.F_nums))
 
         pca, PC = self.func_pca(n_components=self.F_nums,
