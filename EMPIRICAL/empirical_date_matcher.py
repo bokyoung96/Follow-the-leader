@@ -8,6 +8,7 @@ import itertools
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.pylab as pylab
 
 from empirical_func import *
 from empirical_loader import *
@@ -15,6 +16,14 @@ from empirical_loader import *
 
 start_date = '2011-01-01'
 end_date = '2022-12-31'
+
+params = {'figure.figsize': (30, 10),
+          'axes.labelsize': 20,
+          'axes.titlesize': 25,
+          'xtick.labelsize': 15,
+          'ytick.labelsize': 15,
+          'legend.fontsize': 15}
+pylab.rcParams.update(params)
 
 
 class DateMatcher(DataLoader):
@@ -45,6 +54,7 @@ class DateMatcher(DataLoader):
         self.freq_2 = freq_2
         self.EV = EV
         self.num = num
+        self.mkt = mkt
 
         if DateMatcher.stopper is None:
             DateMatcher.stopper_idx, DateMatcher.stopper = self.as_empirical(
@@ -130,6 +140,9 @@ class DateMatcher(DataLoader):
         elif self.freq_2 == 20:
             x = 157 - 9
 
+        if self.mkt == 'KOSDAQ150':
+            x = 71 - 9
+
         if 'F_nums_count' in etc_data:
             etc_data['F_nums_count'] = etc_data['F_nums_count'].loc[:x]
         else:
@@ -167,14 +180,17 @@ class DateMatcher(DataLoader):
         slope_change_idx = shares_count_diff.index[shares_count_diff[0] != 0]
         markevery = [shares_count.index.get_loc(i) for i in slope_change_idx]
 
-        fig, ax1 = plt.subplots(figsize=(25, 10))
-        plt.title('REPLICA VERSUS ORIGINAL: {}, {}, {}'.format(
-            self.date, self.freq_1, self.freq_2))
+        fig, ax1 = plt.subplots(figsize=(30, 10))
+        plt.title('REPLICA VERSUS ORIGINAL: IN {}, OUT {}'.format(
+            self.freq_1, self.freq_2))
 
-        ax1.plot(replica, label='REPLICA', color='r', linewidth=1.5)
-        ax1.plot(original, label='ORIGINAL', color='black', linewidth=1.5)
+        ax1.plot(replica, label='REPLICATED INDEX (REPLICA)',
+                 color='r', linewidth=1.5)
+        ax1.plot(original, label='ORIGINAL INDEX (ORIGINAL)',
+                 color='black', linewidth=1.5)
         ax1.set_xlabel('Date')
         ax1.set_ylabel('Cumulative return')
+        ax1.set_ylim(40, 180)
         ax1.legend(loc='best')
 
         ax2 = ax1.twinx()
@@ -190,6 +206,187 @@ class DateMatcher(DataLoader):
         plt.savefig(
             f'./{self.dir_global}/RUNNER_GRAPHS_{self.method_type}/{self.dir_main}.jpg', format='jpeg')
         # plt.show()
+
+    def plot_data_both(self):
+        fl = pd.read_pickle(
+            f"./{self.dir_global}/{self.dir_main}/replica_{self.date}.pkl")
+        fl_real = pd.read_pickle(
+            f"./{self.dir_global}_REAL/{self.dir_main}/replica_{self.date}.pkl")
+
+        shares_count_fl = pd.read_pickle(
+            f"./{self.dir_global}/{self.dir_main}/shares_count_{self.date}.pkl")
+        shares_count_fl_real = pd.read_pickle(
+            f"./{self.dir_global}_REAL/{self.dir_main}/shares_count_{self.date}.pkl")
+
+        fl = fl[:-1]
+        fl_real = fl_real[:-1]
+
+        replica_fl = (
+            1 + Func().func_plot_init_price(fl,
+                                            100)).cumprod() - 1
+        replica_fl_real = (
+            1 + Func().func_plot_init_price(fl_real,
+                                            100)).cumprod() - 1
+        original = (1 + Func().func_plot_init_price(self.idx,
+                                                    100)).cumprod() - 1
+        original.rename(
+            index={0: original.index[1] - pd.DateOffset(days=1)}, inplace=True)
+
+        shares_count_fl = pd.DataFrame(np.concatenate(
+            [item for item in shares_count_fl.values for _ in range(self.freq_2)]))
+        shares_count_fl = shares_count_fl[:replica_fl.shape[0]]
+        shares_count_fl = Func().func_plot_init_price(shares_count_fl, np.nan)
+        shares_count_fl_mean = int(shares_count_fl[1:].mean().values)
+
+        shares_count_fl_real = pd.DataFrame(np.concatenate(
+            [item for item in shares_count_fl_real.values for _ in range(self.freq_2)]))
+        shares_count_fl_real = shares_count_fl_real[:replica_fl_real.shape[0]]
+        shares_count_fl_real = Func().func_plot_init_price(shares_count_fl_real, np.nan)
+        shares_count_fl_real_mean = int(shares_count_fl_real[1:].mean().values)
+
+        shares_count_fl = shares_count_fl[:-1]
+        shares_count_fl_real = shares_count_fl_real[:-1]
+
+        replica_fl.index = original.index
+        replica_fl_real.index = original.index
+        shares_count_fl.index = original.index
+        shares_count_fl_real.index = original.index
+
+        shares_count_fl_diff = shares_count_fl.diff()
+        slope_change_idx = shares_count_fl.index[shares_count_fl_diff[0] != 0]
+        markevery = [shares_count_fl.index.get_loc(
+            i) for i in slope_change_idx]
+
+        shares_count_fl_real_diff = shares_count_fl_real.diff()
+        slope_change_idx_real = shares_count_fl_real.index[shares_count_fl_real_diff[0] != 0]
+        markevery_real = [shares_count_fl_real.index.get_loc(
+            i) for i in slope_change_idx_real]
+
+        lightred = '#FFAAAA'
+
+        fig, ax1 = plt.subplots(figsize=(30, 10))
+        plt.title('REPLICA VERSUS ORIGINAL: IN {}, OUT {}'.format(
+            self.freq_1, self.freq_2))
+
+        ax1.plot(replica_fl, label='REPLICATED INDEX (REPLICA, FL (Adjusted))',
+                 color='r', linewidth=1)
+        ax1.plot(replica_fl_real, label='REPLICATED INDEX (REPLICA, FL)',
+                 color='b', linewidth=1)
+        ax1.plot(original, label='ORIGINAL INDEX (ORIGINAL)',
+                 color='black', linewidth=1.5)
+        ax1.set_xlabel('Date')
+        ax1.set_ylabel('Cumulative return')
+        ax1.set_ylim(40, 180)
+        ax1.legend(loc='best')
+
+        # ax2 = ax1.twinx()
+        # ax2.plot(shares_count_fl, label='SHARES COUNT, FL (Adjusted)',
+        #          color='b', linewidth=1.5, linestyle='--',
+        #          marker='o', markevery=markevery)
+        # ax2.plot(shares_count_fl_real, label='SHARES COUNT, FL',
+        #          color='lightblue', linewidth=1.5, linestyle='--',
+        #          marker='o', markevery=markevery_real)
+        # ax2.set_ylabel('Number of shares')
+        # ax2.set_ylim(0, 200)
+        # ax2.axhline(shares_count_fl_mean, color='g',
+        #             linestyle='--', label='MEAN SHARES COUNT (FL (Adjusted)): {}'.format(shares_count_fl_mean))
+        # ax2.axhline(shares_count_fl_real_mean, color='lightgreen',
+        #             linestyle='--', label='MEAN SHARES COUNT (FL): {}'.format(shares_count_fl_real_mean))
+        # ax2.legend(loc='lower right')
+
+        # plt.show()
+        plt.savefig(
+            './RUNNER_GRAPHS_ETC/plot_both_only_values.jpg', format='jpeg')
+
+    def plot_data_both_trs(self):
+        fl = pd.read_pickle(
+            f"./{self.dir_global}/{self.dir_main}/replica_{self.date}.pkl")
+        fl_real = pd.read_pickle(
+            f"./{self.dir_global}_TRS/{self.dir_main}_12/replica_{self.date}.pkl")
+
+        shares_count_fl = pd.read_pickle(
+            f"./{self.dir_global}/{self.dir_main}/shares_count_{self.date}.pkl")
+        shares_count_fl_real = pd.read_pickle(
+            f"./{self.dir_global}_TRS/{self.dir_main}_12/shares_count_{self.date}.pkl")
+
+        fl = fl[:-1]
+        fl_real = fl_real[:-1]
+
+        replica_fl = (
+            1 + Func().func_plot_init_price(fl,
+                                            100)).cumprod() - 1
+        replica_fl_real = (
+            1 + Func().func_plot_init_price(fl_real,
+                                            100)).cumprod() - 1
+        original = (1 + Func().func_plot_init_price(self.idx,
+                                                    100)).cumprod() - 1
+        original.rename(
+            index={0: original.index[1] - pd.DateOffset(days=1)}, inplace=True)
+
+        shares_count_fl = pd.DataFrame(np.concatenate(
+            [item for item in shares_count_fl.values for _ in range(self.freq_2)]))
+        shares_count_fl = shares_count_fl[:replica_fl.shape[0]]
+        shares_count_fl = Func().func_plot_init_price(shares_count_fl, np.nan)
+        shares_count_fl_mean = int(shares_count_fl[1:].mean().values)
+
+        shares_count_fl_real = pd.DataFrame(np.concatenate(
+            [item for item in shares_count_fl_real.values for _ in range(self.freq_2)]))
+        shares_count_fl_real = shares_count_fl_real[:replica_fl_real.shape[0]]
+        shares_count_fl_real = Func().func_plot_init_price(shares_count_fl_real, np.nan)
+        shares_count_fl_real_mean = int(shares_count_fl_real[1:].mean().values)
+
+        shares_count_fl = shares_count_fl[:-1]
+        shares_count_fl_real = shares_count_fl_real[:-1]
+
+        replica_fl.index = original.index
+        replica_fl_real.index = original.index
+        shares_count_fl.index = original.index
+        shares_count_fl_real.index = original.index
+
+        shares_count_fl_diff = shares_count_fl.diff()
+        slope_change_idx = shares_count_fl.index[shares_count_fl_diff[0] != 0]
+        markevery = [shares_count_fl.index.get_loc(
+            i) for i in slope_change_idx]
+
+        shares_count_fl_real_diff = shares_count_fl_real.diff()
+        slope_change_idx_real = shares_count_fl_real.index[shares_count_fl_real_diff[0] != 0]
+        markevery_real = [shares_count_fl_real.index.get_loc(
+            i) for i in slope_change_idx_real]
+
+        lightred = '#FFAAAA'
+
+        fig, ax1 = plt.subplots(figsize=(30, 10))
+        plt.title('REPLICA VERSUS REPLICA WITH HOLDING 1ST WINDOW: IN {}, OUT {}'.format(
+            self.freq_1, self.freq_2))
+
+        ax1.plot(replica_fl, label='REPLICATED INDEX (REPLICA, FL (Adjusted))',
+                 color='r', linewidth=1.5)
+        ax1.plot(replica_fl_real, label='REPLICATED INDEX (REPLICA WITH HOLDING)',
+                 color=lightred, linewidth=1.5)
+        ax1.plot(original, label='ORIGINAL INDEX (ORIGINAL)',
+                 color='black', linewidth=1.5)
+        ax1.set_xlabel('Date')
+        ax1.set_ylabel('Cumulative return')
+        ax1.set_ylim(40, 180)
+        ax1.legend(loc='best')
+
+        ax2 = ax1.twinx()
+        ax2.plot(shares_count_fl, label='SHARES COUNT, FL (Adjusted)',
+                 color='b', linewidth=1.5, linestyle='--',
+                 marker='o', markevery=markevery)
+        ax2.plot(shares_count_fl_real, label='SHARES COUNT, REPLICA WITH HOLDING',
+                 color='lightblue', linewidth=1.5, linestyle='--',
+                 marker='o', markevery=markevery_real)
+        ax2.set_ylabel('Number of shares')
+        ax2.set_ylim(0, 200)
+        ax2.axhline(shares_count_fl_mean, color='g',
+                    linestyle='--', label='MEAN SHARES COUNT (FL (Adjusted)): {}'.format(shares_count_fl_mean))
+        ax2.axhline(shares_count_fl_real_mean, color='lightgreen',
+                    linestyle='--', label='MEAN SHARES COUNT (RELICA WITH HOLDING): {}'.format(shares_count_fl_real_mean))
+        ax2.legend(loc='lower right')
+
+        plt.savefig(
+            './RUNNER_GRAPHS_ETC/plot_both_holding.jpg', format='jpeg')
 
     def save_data(self):
         """
@@ -229,22 +426,19 @@ class DateMatcher(DataLoader):
 
 if __name__ == "__main__":
     # method_types = ['CM', 'FL', 'NV']
-    # method_types = ['FL']
-    # freq_1s = [375]
-    # freq_2s = [5]
-    # count = 0
-    # for val_1, val_2, val_3 in itertools.product(method_types, freq_1s, freq_2s):
-    #     date_matcher = DateMatcher(method_type=val_1,
-    #                                freq_1=val_2,
-    #                                freq_2=val_3,
-    #                                EV=0.999)
-    #     date_matcher.plot_data()
-    #     date_matcher.save_data()
-    #     # date_matcher.save_weight_data()
-    #     count += 1
-    #     print(f"ITERATION {count} COMPLETE. MOVING ON...")
-
-    # date_matcher = DateMatcher(method_type='CM',
-    #                            freq_1=250,
-    #                            freq_2=20)
-    pass
+    method_types = ['FL']
+    freq_1s = [250]
+    freq_2s = [5]
+    count = 0
+    for val_1, val_2, val_3 in itertools.product(method_types, freq_1s, freq_2s):
+        date_matcher = DateMatcher(method_type=val_1,
+                                   freq_1=val_2,
+                                   freq_2=val_3,
+                                   mkt='KOSPI200',
+                                   EV=0.999)
+        # date_matcher.plot_data()
+        # date_matcher.save_data()
+        # date_matcher.plot_data_both_trs()
+        date_matcher.plot_data_both()
+        count += 1
+        print(f"ITERATION {count} COMPLETE. MOVING ON...")

@@ -84,7 +84,7 @@ class MethodRunnerFL(Func):
     def __init__(self,
                  F_max: int = 30,
                  EV: float = 0.9,
-                 rolls: int = 12,
+                 rolls: int = 1000,
                  mkt: str = 'KOSPI200',
                  date: str = 'Y15',
                  idx_weight: str = 'EQ'

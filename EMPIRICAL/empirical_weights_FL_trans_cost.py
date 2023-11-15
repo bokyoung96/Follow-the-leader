@@ -15,7 +15,7 @@ class EmWeightsSaveFL(EmMethodSaveFL):
                  stocks: pd.Series,
                  F_max: int = 30,
                  EV: float = 0.95,
-                 rolls: int = 9):
+                 rolls: int = 1000):
         """
         <DESCRIPTION>
         Optimize the weight of replication index under factor spanning constraint and initial value constraint.
@@ -156,7 +156,7 @@ class EmWeightsSaveFL(EmMethodSaveFL):
             result = minimize(lambda x: self.obj(x),
                               weights_init,
                               method='SLSQP',
-                              constraints=consts,
+                              #   constraints=consts,
                               #   bounds=bounds,
                               options={'maxiter': 10000,
                                        'ftol': 1e-6},

@@ -285,8 +285,8 @@ class MethodRunnerFL(Func):
 
 
 if __name__ == "__main__":
-    freq_1s = [250]
-    freq_2s = [20]
+    freq_1s = [500]
+    freq_2s = [20, 15, 10, 5]
     for val_1, val_2 in itertools.product(freq_1s, freq_2s):
         freq_1 = val_1
         freq_2 = val_2

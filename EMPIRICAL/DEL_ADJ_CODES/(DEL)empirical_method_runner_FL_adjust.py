@@ -285,12 +285,12 @@ class MethodRunnerFL(Func):
 
 
 if __name__ == "__main__":
-    freq_1s = [250]
+    freq_1s = [500]
     freq_2s = [20]
     for val_1, val_2 in itertools.product(freq_1s, freq_2s):
         freq_1 = val_1
         freq_2 = val_2
-        dir_global = "RUNNER_FL_{}_{}_p_val_{}_adj".format(
+        dir_global = "RUNNER_FL_{}_{}_p_val_{}_adj_REAL".format(
             freq_1, freq_2, p_val)
         locate_dir("./{}/".format(dir_global))
 

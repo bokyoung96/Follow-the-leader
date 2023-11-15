@@ -6,43 +6,41 @@ Topic: Empirical Analysis
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
-from empirical_method_FL import *
+from empirical_method_CM import *
 
 
-class EmWeightsFL(EmMethodFL):
-
+class EmWeightsCM(EmMethodCM):
     def __init__(self,
                  idx: pd.DataFrame,
                  stocks: pd.Series,
-                 F_max: int = 30,
-                 EV: float = 0.95):
+                 EV: float = 0.999,
+                 min_R2: float = 0.8):
         """
         <DESCRIPTION>
         Optimize the weight of replication index under factor spanning constraint and initial value constraint.
 
         <PARAMETER>
-        Same as EmMethodFL class.
+        Same as EmMethodCM class.
 
         <CONSTRUCTOR>
-        leaders: Selected shares' returns explaining each factors.
+        leaders, leaders_ret: Selected shares and its returns explaining each factors.
         N: Number of constituents in the index.
         weights_idx: Weight vector for original index constituted by equal-weights.
         """
-        super().__init__(idx, stocks, F_max, EV)
-        self.leaders = self.get_shares()
-
+        super().__init__(idx, stocks, EV, min_R2)
+        self.leaders, self.leaders_ret = self.get_matched_returns()
         self.leaders_shares = np.array(
             self.stocks.T.iloc[self.get_matched_rows(), :].reset_index(drop=True)).astype(np.float64)
         self.N = len(self.stocks.T)
         self.weights_idx = np.full((1, self.N), 1/self.N)
 
-    def get_matched_rows(self):
+    def get_matched_rows(self) -> np.ndarray:
         """
         <DESCRIPTION>
         Get the row number of shares explaining each factors.
         """
         rows = []
-        for row in self.leaders:
+        for row in self.leaders_ret:
             matched = np.where(
                 (self.stocks_ret.T.values == row).all(axis=1))[0]
             rows.append(matched)
@@ -70,8 +68,13 @@ class EmWeightsFL(EmMethodFL):
         <DESCRIPTION>
         Get the replicated index term in initial value constraint.
         """
-        init_leaders = ((1 + pd.DataFrame(self.leaders)
+        # init_leaders = pd.DataFrame(
+        #     self.leaders_ret.cumsum(axis=1)).values[:, -1]
+        init_leaders = ((1 + pd.DataFrame(self.leaders_ret)
                          ).cumprod(axis=1) - 1).iloc[:, -1]
+
+        # NOTE: PRICE
+        # init_leaders = self.leaders_shares[:, -1]
         return np.dot(x, init_leaders)
 
     @property
@@ -80,8 +83,19 @@ class EmWeightsFL(EmMethodFL):
         <DESCRIPTION>
         Get the original index term in initial value constraint.
         """
+        # init_stocks_ret = self.idx_ret.cumsum()[-1]
         init_stocks_ret = ((1 + self.idx_ret).cumprod() - 1).iloc[-1]
+
+        # NOTE: PRICE
+        # init_stocks_ret = self.stocks.iloc[-1, :].mean()
         return init_stocks_ret
+
+    # def const_1(self, x: np.ndarray, i: int) -> np.ndarray:
+    #     """
+    #     <DESCRIPTION>
+    #     Get factor spanning constraint.
+    #     """
+    #     return (self.const_replica_FL(x) - self.const_idx_FL).flatten()[i]
 
     def const_1(self, x: np.ndarray) -> np.ndarray:
         """
@@ -104,9 +118,14 @@ class EmWeightsFL(EmMethodFL):
         """
         x = x.reshape((1, -1))
 
+        # NOTE: WELL-WORKING IN OUT-SAMPLE DATAS
         replica_idx = pd.DataFrame(
-            np.dot(x, self.leaders)).values
+            np.dot(x, self.leaders_ret)).values
         origin_idx = self.idx_ret.values
+
+        # NOTE: PRICE
+        # replica_idx = np.dot(x, self.leaders_shares)
+        # origin_idx = np.dot(self.weights_idx, self.stocks.T)
 
         obj_value = np.sum((origin_idx - replica_idx) ** 2)
         return obj_value
@@ -124,15 +143,16 @@ class EmWeightsFL(EmMethodFL):
         """
         weights_init = np.full((1, self.shares_n), 1/self.shares_n).flatten()
 
-        # bounds = [(-1, 1) for _ in range(self.shares_n)]
+        bounds = [(-1, 1) for _ in range(self.shares_n)]
         if self.shares_n == 1:
             print("***** 1 STOCK INVESTED: OPTIMIZATION NOT REQUIRED *****")
-            optimal_weights = weights_init.reshape((1, -1))
-            result = 0
-
+            optimal_weights = weights_init
+            return optimal_weights
         else:
             print("***** STARTING OPTIMIZATION FOR WEIGHTS *****")
 
+            # consts_1 = [{'type': 'eq', 'fun': self.const_1,
+            #              'args': (i,)} for i in range(self.FL_pca.shape[0])]
             consts_1 = [{'type': 'eq', 'fun': self.const_1}]
             consts_2 = [{'type': 'eq', 'fun': self.const_2}]
             consts = consts_1 + consts_2
@@ -150,21 +170,21 @@ class EmWeightsFL(EmMethodFL):
             result = minimize(lambda x: self.obj(x),
                               weights_init,
                               method='SLSQP',
-                              #   constraints=consts,
+                              constraints=consts,
                               #   bounds=bounds,
-                              options={'maxiter': 10000,
+                              options={'maxiter': 1000,
                                        'ftol': 1e-6},
                               callback=callback_func)
 
             optimal_weights = result.x.reshape((1, -1))
 
-        # WEIGHT SAVE POINT
-        optimal_weights_df = pd.DataFrame(columns=self.stocks.columns)
-        optimal_weights_save = pd.DataFrame(optimal_weights,
-                                            columns=self.stocks.T.iloc[self.get_matched_rows()].index)
-        save = optimal_weights_df.combine_first(optimal_weights_save)[
-            self.stocks.columns]
-        return optimal_weights, result, save
+            # WEIGHT SAVE POINT
+            optimal_weights_df = pd.DataFrame(columns=self.stocks.columns)
+            optimal_weights_save = pd.DataFrame(optimal_weights,
+                                                columns=self.stocks.T.iloc[self.get_matched_rows()].index)
+            save = optimal_weights_df.combine_first(optimal_weights_save)[
+                self.stocks.columns]
+            return optimal_weights, result, save
 
     def fast_plot(self) -> plt.plot:
         """
@@ -173,9 +193,8 @@ class EmWeightsFL(EmMethodFL):
         """
         opt_weights, res, save = self.optimize()
         replica = pd.DataFrame(
-            1 + np.dot(opt_weights, self.leaders)).T.cumprod() - 1
+            1 + np.dot(opt_weights, self.leaders_ret)).T.cumprod() - 1
         origin = (1 + self.idx_ret).cumprod() - 1
-
         replica.index = origin.index
 
         plt.figure(figsize=(15, 5))
@@ -187,8 +206,81 @@ class EmWeightsFL(EmMethodFL):
 
 
 if __name__ == "__main__":
-    data_loader = DataLoader(mkt='KOSPI200', date='Y1')
-    idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
 
-    weights = EmWeightsFL(idx, stocks)
-    opt_weights, res, save = weights.fast_plot()
+    class DataSplit:
+        def __init__(self, mkt: str = 'KOSPI200',
+                     date: str = 'Y15',
+                     idx_weight: str = 'EQ'):
+            """
+            <DESCRIPTION>
+            Split datas for in-sample and out-sample tests.
+
+            <PARAMETER>
+            mkt: Market specified for data.
+            date: Date specified for data.
+            idx_weight: Index weight specified for data.
+
+            <CONSTRUCTOR>
+            idx, stocks: Index and stock data.
+            months: Month frequency by global var freq_2.
+            years: Year frequency by global var freq_1.
+            """
+            self.data_loader = DataLoader(mkt, date)
+            self.idx, self.stocks = self.data_loader.as_empirical(
+                idx_weight=idx_weight)
+            self.months = 250
+            self.years = 20
+
+        def data_split(self):
+            """
+            <DESCRIPTION>
+            Split datas into in-sample + out-sample.
+            """
+            res = []
+            start = 0
+
+            start_date = '2011-01-01'
+            temp_start = self.stocks.loc[start_date:]
+            temp_window = self.stocks.loc[:start_date].iloc[-self.years:]
+            self.stocks = pd.concat([temp_window, temp_start], axis=0)
+            rows = len(self.stocks)
+            while start < rows:
+                end = start + self.years + self.months
+
+                if end > rows:
+                    end = rows
+                temp = self.stocks.iloc[start:end]
+                res.append(temp)
+                start = start + self.years + self.months
+            print("SPLIT COMPLETED. MOVING ON...")
+            return res
+
+    data_split = DataSplit('KOSPI200',
+                           'Y15',
+                           'EQ')
+    splits = data_split.data_split()
+
+    consts = pd.read_pickle(
+        "./KOSPI200_CONST/KOSPI200_CONST_Y15_PIVOT.pkl")
+    print("CONSTITUENTS LOADED. MOVING ON...")
+
+    for stocks in splits:
+        # NOTE: Drop process executed in runner.
+        consts_temp = consts.loc[stocks.index[-1]]
+        stocks = stocks.loc[:, stocks.columns.isin(
+            consts_temp[consts_temp == 1].index)]
+        stocks = stocks.dropna(how='any', axis=1)
+        for col in stocks.columns:
+            if stocks[col].nunique() == 1:
+                stocks = stocks.drop(col, axis=1)
+        idx = data_split.idx[stocks.index]
+        print("PREPROCESS DONE. MOVING ON...")
+
+        weights = EmWeightsCM(idx, stocks)
+        opt_weights, res, save = weights.fast_plot()
+
+    # data_loader = DataLoader(mkt='KOSPI200', date='Y3')
+    # idx, stocks = data_loader.fast_as_empirical(idx_weight='EQ')
+
+    # weights = EmWeightsCM(idx, stocks)
+    # opt_weights, res, save = weights.fast_plot()

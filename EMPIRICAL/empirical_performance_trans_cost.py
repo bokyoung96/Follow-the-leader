@@ -4,9 +4,11 @@ Article: Follow the leader: Index tracking with factor models
 Topic: Empirical Analysis
 """
 import os
+import itertools
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.pylab as pylab
 from pathlib import Path
 
 from empirical_func import *
@@ -20,10 +22,16 @@ def locate_dir(dir_name):
     path.mkdir(parents=True, exist_ok=True)
 
 
-locate_dir('RUNNER_GRAPH_TRS')
-
 start_date = '2011-01-01'
 end_date = '2022-12-31'
+
+params = {'figure.figsize': (30, 10),
+          'axes.labelsize': 20,
+          'axes.titlesize': 25,
+          'xtick.labelsize': 15,
+          'ytick.labelsize': 15,
+          'legend.fontsize': 15}
+pylab.rcParams.update(params)
 
 
 class PerformanceTrs(DataLoader):
@@ -36,7 +44,7 @@ class PerformanceTrs(DataLoader):
                  freq_2: int = 20,
                  EV: float = 0.9,
                  num: int = 100,
-                 rolls: int = 9,
+                 rolls: int = 12,
                  mkt: str = 'KOSPI200',
                  idx_weight: str = 'EQ'):
         """
@@ -67,6 +75,15 @@ class PerformanceTrs(DataLoader):
             self.dir_main_trs = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_p_val_0.1_{self.rolls}"
             self.dir_main_adj = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_p_val_0.1_adj"
 
+        elif self.method_type == 'FL_REAL':
+            self.method_type = 'FL'
+            self.dir_global = f"RUNNER_{self.method_type}_{self.date}_p_val_0.1_REAL"
+            # self.dir_global_trs = f"RUNNER_{self.method_type}_{self.date}_p_val_0.1_TRS_REAL"
+            # self.dir_global_adj = f"RUNNER_{self.method_type}_{self.date}_p_val_0.1_ADJ"
+            self.dir_main = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_p_val_0.1"
+            # self.dir_main_trs = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_p_val_0.1_{self.rolls}"
+            # self.dir_main_adj = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_p_val_0.1_adj"
+
         elif self.method_type == "CM":
             self.dir_global = f"RUNNER_{self.method_type}_{self.date}_ev_{self.EV}"
             self.dir_main = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_ev_{self.EV}"
@@ -76,7 +93,8 @@ class PerformanceTrs(DataLoader):
             self.dir_main = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_num_{self.num}"
 
         else:
-            raise AssertionError("Invalid Value. Insert FL / CM / NV.")
+            raise AssertionError(
+                "Invalid Value. Insert FL / FL_REAL / CM / NV.")
 
         self.weights_save = pd.read_pickle(
             f'./{self.dir_global}/{self.dir_main}/weights_save_{self.date}.pkl')
@@ -203,13 +221,15 @@ class PerformanceTrs(DataLoader):
     def plot_data(self):
         replica_raw, replica, idx = self.data_to_be_used
 
-        plt.figure(figsize=(25, 10))
+        plt.figure(figsize=(30, 10))
         plt.xlabel('Date')
         plt.ylabel('Cumulative return')
-        plt.title('REPLICA WITH TRANSACTION COST')
+        plt.title(
+            f'REPLICA VERSUS ORIGINAL: IN {self.freq_1}, OUT {self.freq_2} WITH TRANSACTION COST')
 
-        plt.plot(replica_raw, label='REPLICA', color='b', linewidth=1)
-        plt.plot(replica, label='REPLICA W TRANSACTION COST',
+        plt.plot(replica_raw, label='REPLICATED IDX (REPLICA)',
+                 color='b', linewidth=1)
+        plt.plot(replica, label='REPLICA WITH TRANSACTION COST',
                  color='r', linewidth=1)
         plt.plot(idx, label='ORIGINAL', color='black', linewidth=2)
         plt.fill_between(x=replica_raw.index, y1=replica_raw,
@@ -225,76 +245,87 @@ class PerformanceTrs(DataLoader):
         idx.rename(
             index={0: idx.index[1] - pd.DateOffset(days=1)}, inplace=True)
 
-        plt.figure(figsize=(25, 10))
+        plt.figure(figsize=(30, 10))
         plt.xlabel('Date')
         plt.ylabel('Cumulative return')
-        plt.title('REPLICA ADJ WITH TRANSACTION COST')
+        plt.title('REPLICA ADJUSTMENT WITH TRANSACTION COST')
 
-        plt.plot(replica_raw_adj, label='REPLICA ADJ', color='b', linewidth=1)
-        plt.plot(replica_adj, label='REPLICA ADJ W TRANSACTION COST',
+        plt.plot(replica_raw_adj, label='REPLICA ADJUSTED',
+                 color='b', linewidth=1)
+        plt.plot(replica_adj, label='REPLICA ADJUSTED WITH TRANSACTION COST',
                  color='r', linewidth=1)
         plt.plot(idx, label='ORIGINAL', color='black', linewidth=2)
         plt.fill_between(x=replica_raw_adj.index, y1=replica_raw_adj,
                          y2=replica_adj, color='grey', alpha=0.3)
         plt.legend(loc='best')
-        plt.show()
+        # plt.show()
+        plt.savefig('./RUNNER_GRAPHS_ETC/adj.jpg', format='jpeg')
 
     def plot_data_difference(self):
         replica_raw, replica, idx = self.data_to_be_used
         difference = replica_raw - replica
         x = replica_raw.index
 
-        if self.method_type == 'FL':
-            replica_raw_trs, replica_trs = self.data_to_be_used_trs
-            difference_trs = replica_raw_trs - replica_trs
+        # if self.method_type == 'FL':
+        #     replica_raw_trs, replica_trs = self.data_to_be_used_trs
+        #     difference_trs = replica_raw_trs - replica_trs
 
-            replica_raw_adj, replica_adj = self.data_to_be_used_adj
-            difference_adj = replica_raw_adj - replica_adj
+        #     replica_raw_adj, replica_adj = self.data_to_be_used_adj
+        #     difference_adj = replica_raw_adj - replica_adj
 
-        fig, ax1 = plt.subplots(figsize=(25, 10))
-        plt.title('REPLICA WITH TRANSACTION COST')
+        fig, ax1 = plt.subplots(figsize=(30, 10))
+        plt.title(
+            f'REPLICA VERSUS ORIGINAL: IN {self.freq_1}, OUT {self.freq_2} WITH TRANSACTION COST')
 
-        ax1.plot(x, replica_raw, 'b-', label='REPLICA')
-        ax1.plot(x, replica, 'r-', label='REPLICA W TRANSACTION COST')
+        ax1.plot(x, replica_raw, 'r-', label='REPLICATED INDEX (REPLICA)')
+        ax1.plot(x, replica, 'b-', label='REPLICA WITH TRANSACTION COST')
         ax1.plot(x, idx, 'k-', label='ORIGINAL', linewidth=2)
 
-        if self.method_type == 'FL':
-            ax1.plot(x, replica_raw_trs, color='green',
-                     label='REPLICA W ADJUSTMENT')
-            ax1.plot(x, replica_trs, color='orange',
-                     label='REPLICA W ADJUSTMENT W TRANSACTION COST')
+        # if self.method_type == 'FL':
+        #     ax1.plot(x, replica_raw_trs, color='green',
+        #              label='REPLICA W ADJUSTMENT')
+        #     ax1.plot(x, replica_trs, color='orange',
+        #              label='REPLICA W ADJUSTMENT W TRANSACTION COST')
 
         ax1.set_xlabel('Date')
         ax1.set_ylabel('Cumulative return')
+        ax1.set_ylim(40, 180)
 
-        ax2 = ax1.twinx()
+        # trans_cost = Func().func_plot_init_price(self.trans_cost, 0)
+        # trans_cost.rename(
+        #     index={0: trans_cost.index[1] - pd.DateOffset(days=1)}, inplace=True)
 
-        ax2.fill_between(x, 0, difference, color='grey',
-                         alpha=0.5, label='CUM TRS')
+        # ax2 = ax1.twinx()
+        # ax2.bar(x, trans_cost, color='grey', alpha=0.5,
+        #         label='DIFFERENCE BY TRANSACTION COST')
 
-        if self.method_type == 'FL':
-            ax2.fill_between(x, 0, difference_trs, color='purple',
-                             alpha=0.1, label='CUM TRS W ADJUSTMENT')
-            ax2.fill_between(x, 0, difference_adj, color='blue',
-                             alpha=0.1, label='CUM ADJ')
+        # ax2.fill_between(x, 0, difference, color='grey',
+        #                  alpha=0.5, label='DIFFERENCE BY TRANSACTION COST')
 
-        ax2.set_ylabel('Transaction cost')
+        # if self.method_type == 'FL':
+        #     ax2.fill_between(x, 0, difference_trs, color='purple',
+        #                      alpha=0.1, label='CUM TRS W ADJUSTMENT')
+        #     ax2.fill_between(x, 0, difference_adj, color='blue',
+        #                      alpha=0.1, label='CUM ADJ')
 
-        fig.tight_layout()
+        # ax2.set_ylabel('Difference by transaction cost')
+
         ax1.legend(loc='lower left')
-        ax2.legend(loc='lower right')
+        # ax2.legend(loc='lower right')
         plt.show()
-        # plt.savefig(f'./RUNNER_GRAPH_TRS/{self.dir_main}', format='jpeg')
+        # plt.savefig(f'./RUNNER_GRAPHS_ETC/trans_cost.jpg', format='jpeg')
 
     def table_data_difference(self):
         diff_year = self.trans_cost.resample('A').mean()
         diff_month = self.trans_cost.groupby(
             self.trans_cost.index.month).mean()
+        diff_turnover = self.weights_save.diff().abs().sum(axis=1).resample('A').sum()
 
         if self.method_type == 'FL':
             diff_year_trs = self.trans_cost_trs.resample('A').mean()
             diff_month_trs = self.trans_cost_trs.groupby(
                 self.trans_cost_trs.index.month).mean()
+            diff_turnover_trs = self.weights_save_trs.diff().abs().sum(axis=1).resample('A').sum()
 
         res = pd.DataFrame({'Year': diff_year.index,
                             'Transaction cost (Y, sum)': diff_year.values,
@@ -304,30 +335,50 @@ class PerformanceTrs(DataLoader):
         if self.method_type == 'FL':
             diff_year_btw = diff_year.values - diff_year_trs.values
             diff_month_btw = diff_month.values - diff_month_trs.values
+            diff_turnover_btw = diff_turnover.values - diff_turnover_trs.values
+
+            # res = pd.DataFrame({'Year': diff_year.index,
+            #                     'Transaction cost (Y, sum)': diff_year.values,
+            #                     'Transaction cost (TRS, Y, sum)': diff_year_trs.values,
+            #                     'Difference (Y, sum)': diff_year_btw,
+            #                     'Month': diff_month.index,
+            #                     'Transaction cost (M, mean)': diff_month.values,
+            #                     'Transaction cost (TRS, M, mean)': diff_month_trs.values,
+            #                     'Difference (M, mean)': diff_month_btw})
 
             res = pd.DataFrame({'Year': diff_year.index,
-                                'Transaction cost (Y, sum)': diff_year.values,
-                                'Transaction cost (TRS, Y, sum)': diff_year_trs.values,
-                                'Difference (Y, sum)': diff_year_btw,
-                                'Month': diff_month.index,
-                                'Transaction cost (M, mean)': diff_month.values,
-                                'Transaction cost (TRS, M, mean)': diff_month_trs.values,
-                                'Difference (M, mean)': diff_month_btw})
-            res.index.name = "Transaction costs in (%)"
+                                'Transaction cost': diff_year.values,
+                                'Transaction cost (Holding 1st window)': diff_year_trs.values,
+                                'Difference in transaction cost': diff_year_btw,
+                                'Turnover': diff_turnover.values,
+                                'Turnover (Holding 1st window)': diff_turnover_trs.values,
+                                'Difference in turnover': diff_turnover_btw})
 
+            res.index.name = "Transaction costs in (%)"
+            res = res.set_index(['Year'])
         res = np.round(res, 6)
         return res
 
     def table_turnover_difference(self):
-        turnover = self.weights_save.diff().abs().sum(axis=1).mean()
-        turnover_trs = self.weights_save_trs.diff().abs().sum(axis=1).mean()
+        turnover = self.weights_save.diff().abs().sum(axis=1).mean() * 12
+        turnover_trs = self.weights_save_trs.diff().abs().sum(axis=1).mean() * 12
 
-        res = pd.DataFrame([turnover, turnover_trs],
-                           index=['REPLICA',
-                                  'REPLICA W ADJUSTMENT'],
-                           columns=['TURNOVER']).T
-        res.index.name = 'PORTFOLIO TURNOVER'
-        res = np.round(res, 6)
+        replica_raw, replica, idx = self.data_to_be_used
+        replica_raw_trs, replica_trs = self.data_to_be_used_trs
+
+        corr = np.corrcoef(replica_raw, idx)[0, 1]
+        corr_trs = np.corrcoef(replica_raw_trs, idx)[0, 1]
+
+        mse = np.sqrt(np.sum((replica_raw - idx) ** 2)) / replica_raw.shape[0]
+        mse_trs = np.sqrt(np.sum(replica_raw_trs - idx)
+                          ** 2) / replica_raw_trs.shape[0]
+
+        res = pd.DataFrame([[mse, mse_trs], [corr, corr_trs], [turnover, turnover_trs]],
+                           columns=['REPLICA',
+                                    'REPLICA W ADJUSTMENT'],
+                           index=['MSE', 'Correl.', 'Turnover (Yearly)'])
+
+        res = np.round(res, 4)
         return res
 
     def plot_weight_counts(self):
@@ -362,27 +413,96 @@ class PerformanceTrs(DataLoader):
         chgs_matched = chgs_matched[:self.replica.index.shape[0]]
         chgs_matched.index = self.replica.index
 
-        plt.figure(figsize=(25, 10))
-        plt.title('NUMBER OF SHARES USED')
+        plt.figure(figsize=(30, 10))
+        plt.title('COMPARISON OF NUMBER OF SHARES USED')
         plt.xlabel('Date')
         plt.ylabel('Number of shares')
-        plt.ylim(0, 200)
+        # plt.ylim(0, 200)
 
-        plt.plot(shares_count_matched, label='SHARES COUNT',
+        plt.plot(shares_count_matched, label='SHARES COUNT (FL)',
                  color='black', linewidth=2, linestyle='-',
                  marker='o', markevery=shares_count)
-        plt.plot(shares_count_trs_matched, label='SHARES COUNT (TRS)',
+        plt.plot(shares_count_trs_matched, label='SHARES COUNT (FL, HOLDING)',
                  color='b', linewidth=1.5, linestyle='--',
                  marker='o', markevery=shares_count_trs)
-        plt.plot(chgs_matched, label='CHGS (TRS)',
+        plt.plot(chgs_matched, label='1ST HOLDING',
                  color='r', linewidth=1, linestyle='--',
                  marker='x', markevery=chgs)
         # plt.plot(shares_count_adj_matched, label='SHARES COUNT (ADJ)',
         #          color='r', linewidth=1.5, linestyle='--',
         #          marker='o', markevery=shares_count_adj)
-
+        plt.fill_between(self.replica.index, shares_count_matched.iloc[:, 0], shares_count_trs_matched.iloc[:, 0],
+                         where=(
+                             shares_count_matched.iloc[:, 0] < shares_count_trs_matched.iloc[:, 0]),
+                         color='gray', alpha=0.25)
         plt.legend(loc='best')
         plt.show()
+
+        # plt.savefig('./RUNNER_GRAPHS_ETC/shares_used.jpg', format='jpeg')
+
+
+def concat_trans_cost(freq_1: int = 250,
+                      freq_2: int = 20):
+    perf_trs_fl_real = PerformanceTrs(method_type='FL_REAL',
+                                      freq_1=freq_1,
+                                      freq_2=freq_2)
+    perf_trs_fl = PerformanceTrs(method_type='FL',
+                                 freq_1=freq_1,
+                                 freq_2=freq_2)
+    perf_trs_cm99 = PerformanceTrs(method_type='CM',
+                                   freq_1=freq_1,
+                                   freq_2=freq_2,
+                                   EV=0.99)
+    perf_trs_cm999 = PerformanceTrs(method_type='CM',
+                                    freq_1=freq_1,
+                                    freq_2=freq_2,
+                                    EV=0.999)
+    perf_trs_nv = PerformanceTrs(method_type='NV',
+                                 freq_1=freq_1,
+                                 freq_2=freq_2)
+
+    trs_values = [
+        perf_trs_fl_real.trans_cost.describe()[
+            ['mean', 'std', 'max']],
+        perf_trs_fl.trans_cost.describe()[['mean', 'std', 'max']],
+        perf_trs_cm99.trans_cost.describe()[
+            ['mean', 'std', 'max']],
+        perf_trs_cm999.trans_cost.describe()[
+            ['mean', 'std', 'max']],
+        perf_trs_nv.trans_cost.describe()[['mean', 'std', 'max']]]
+
+    def turnover(weights_save):
+        return weights_save.diff().abs().sum(axis=1).mean()
+
+    turnover_values = [turnover(perf_trs_fl_real.weights_save),
+                       turnover(perf_trs_fl.weights_save),
+                       turnover(perf_trs_cm99.weights_save),
+                       turnover(perf_trs_cm999.weights_save),
+                       turnover(perf_trs_nv.weights_save)]
+
+    res_trs = pd.DataFrame(trs_values)
+    res_trs.columns = ['MEAN', 'STD.DEV.', 'MAX']
+
+    res_to = np.round(pd.DataFrame(turnover_values) * 12, 4)
+    res_to.columns = ['Turnover (Yearly)']
+
+    res = pd.concat([res_trs, res_to], axis=1)
+    res.index = ['Follow the leader',
+                 'Follow the leader (Adjusted)',
+                 'CM-2006 EV cutoff at 99%',
+                 'CM-2006 EV cutoff at 99.9%',
+                 'Naive correlation']
+    return res
+
+
+def concat_trans_cost_all(freq_2: int = 15):
+    df = pd.DataFrame()
+    freq_1s = [250, 375, 500]
+    freq_2s = [freq_2]
+    for val_1, val_2 in itertools.product(freq_1s, freq_2s):
+        temp = concat_trans_cost(val_1, val_2)
+        df = pd.concat([df, temp], axis=0)
+    return df
 
 
 if __name__ == "__main__":
@@ -391,9 +511,11 @@ if __name__ == "__main__":
                               freq_2=20,
                               EV=0.99,
                               rolls=12)
-    perf_trs.plot_data()
+    # perf_trs.plot_data()
     perf_trs.plot_data_adj()
-    perf_trs.plot_data_difference()
-    perf_trs.plot_weight_counts()
-    print(perf_trs.table_data_difference())
-    print(perf_trs.table_turnover_difference())
+    # perf_trs.plot_data_difference()
+    # perf_trs.plot_weight_counts()
+    # print(perf_trs.table_data_difference())
+    # print(perf_trs.table_turnover_difference())
+    # res = concat_trans_cost()
+    # df = concat_trans_cost_all(freq_2=5)
