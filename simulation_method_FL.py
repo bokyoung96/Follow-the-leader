@@ -114,7 +114,7 @@ class MethodFL(Generator, Func):
         for factor in factors:
             corr = self.in_sample_ret.apply(
                 lambda row: np.corrcoef(row, factor)[0, 1], axis=1)
-            temp.append(corr)
+            temp.append(np.abs(corr))
 
         res = []
         for item in temp:
@@ -161,7 +161,7 @@ class MethodFL(Generator, Func):
                 temp_corr = []
                 for share in shares.values:
                     corr = np.corrcoef(share, resid_add)[0, 1]
-                    temp_corr.append(corr)
+                    temp_corr.append(np.abs(corr))
 
                 rank = self.func_rank(temp_corr)
                 if len(rank) >= 1:
