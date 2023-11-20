@@ -8,7 +8,7 @@ import datetime
 import itertools
 from pathlib import Path
 
-from empirical_weights_FL_trans_cost import *
+from empirical_weights_FL_holding import *
 
 
 # LOCATE DIRECTORY

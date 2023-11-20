@@ -102,7 +102,7 @@ class MethodCM(Generator, Func):
         temp = []
         for factor in factors:
             corr = self.idx_in_sample.corr(pd.Series(factor))
-            temp.append(corr)
+            temp.append(np.abs(corr))
 
         rank = self.func_rank(temp)
         res = factors[np.argsort(rank)]
@@ -124,7 +124,7 @@ class MethodCM(Generator, Func):
         for factor in factors:
             corr = self.in_sample.apply(
                 lambda row: np.corrcoef(row, factor)[0, 1], axis=1)
-            temp.append(corr)
+            temp.append(np.abs(corr))
 
         res = []
         for item in temp:

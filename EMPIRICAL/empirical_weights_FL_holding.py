@@ -6,7 +6,7 @@ Topic: Empirical Analysis
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
-from empirical_method_FL_trans_cost import *
+from empirical_method_FL_holding import *
 
 
 class EmWeightsSaveFL(EmMethodSaveFL):
