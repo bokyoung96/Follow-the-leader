@@ -14,16 +14,8 @@ from numpy.polynomial.polynomial import Polynomial
 
 from empirical_func import *
 from empirical_loader import *
+from empirical_plot_params import *
 from time_spent_decorator import time_spent_decorator
-
-
-params = {'figure.figsize': (30, 10),
-          'axes.labelsize': 20,
-          'axes.titlesize': 25,
-          'xtick.labelsize': 15,
-          'ytick.labelsize': 15,
-          'legend.fontsize': 15}
-pylab.rcParams.update(params)
 
 
 class PerformanceMeasure:
@@ -467,15 +459,18 @@ def perf_trans_concat(method_type: str = 'FL'):
         perf = Performance(freq_1=freq_1,
                            freq_2=freq_2,
                            method_type=method_type,
-                           EV=0.999,
+                           EV=0.99,
                            num=100)
 
         replicated_idx = pd.read_pickle(
             f'./RUNNER_FL_Y15_p_val_0.1/RUNNER_FL_{freq_1}_{freq_2}_p_val_0.1/replica_Y15.pkl')
-        trans_cost = perf.trans_cost_raw.multiply(
-            perf.weights_save).fillna(0).sum(axis=1)[1:]
-        # trans_cost = perf.trans_cost_raw.multiply(
-        #     perf.weights_save).fillna(0).sum(axis=1)
+
+        if (method_type == 'FL') or (method_type == 'FL_REAL'):
+            trans_cost = perf.trans_cost_raw.multiply(
+                perf.weights_save).fillna(0).sum(axis=1)[1:]
+        else:
+            trans_cost = perf.trans_cost_raw.multiply(
+                perf.weights_save).fillna(0).sum(axis=1)
 
         replicated_idx = replicated_idx.values.flatten() - trans_cost.values
         replicated_idx = (1 + Func().func_plot_init_price(pd.DataFrame(replicated_idx),
@@ -593,29 +588,31 @@ def shares_count_plot():
 
     res_scaled.index = replica.index
 
-    plt.figure()
-    plt.title('Number of shares used in every in-sample and out-sample')
-    plt.xlabel('Date')
-    plt.ylabel('Number of shares (Min-Max Scaled)')
+    plt.figure(figsize=(30, 10))
+    plt.title('표본 내 기간과 표본 외 기간에 따른 리더 주식 개수: FL-Adjusted')
+    plt.xlabel('년도')
+    plt.ylabel('종목 개수 (Min-Max 스케일링)')
 
     for col in res_scaled.columns:
-        plt.plot(res.index, res_scaled[col], alpha=0.7)
-    plt.plot(res_scaled.index, y, color='black', linewidth=5,
-             alpha=1, label='Number of shares trend-line')
+        plt.plot(res.index, res_scaled[col], linewidth=1, linestyle='--')
+    plt.plot(res_scaled.index, y, color='black', linewidth=3,
+             alpha=1, label='리더 주식 개수 추세선')
 
     plt.fill_between(res_scaled.index, 0, 1, where=(
-        res_scaled.index >= '2011-08-25') & (res_scaled.index <= '2013-05-02'),
-        color='lightcoral', alpha=0.5, label='Number of shares over-used')
+        res_scaled.index >= '2012-01-01') & (res_scaled.index <= '2013-01-01'),
+        color='lightcoral', alpha=0.5, label='리더 주식 개수 급증 구간')
     plt.fill_between(res_scaled.index, 0, 1, where=(
-        res_scaled.index >= '2019-08-12') & (res_scaled.index <= '2021-03-26'),
+        res_scaled.index >= '2020-01-01') & (res_scaled.index <= '2021-01-01'),
         color='lightcoral', alpha=0.5)
-    plt.fill_between(res_scaled.index, 0, 1, where=(
-        res_scaled.index >= '2013-05-03') & (res_scaled.index <= '2019-08-08'),
-        color='lightblue', alpha=0.5, label='Number of shares under-used')
+    # plt.fill_between(res_scaled.index, 0, 1, where=(
+    #     res_scaled.index >= '2013-05-03') & (res_scaled.index <= '2019-08-08'),
+    #     color='lightblue', alpha=0.5, label='Number of shares under-used')
 
     plt.legend(loc='best')
-    plt.show()
-    # plt.savefig('./RUNNER_GRAPHS_ETC/shares_count.jpg', format='jpeg')
+    # plt.show()
+    plt.savefig('./RUNNER_GRAPHS_ETC/plot_shares_count.jpg',
+                format='jpeg',
+                bbox_inches='tight')
 
 
 @time_spent_decorator
@@ -786,18 +783,23 @@ def perf_concat_rolling_periods(freq_1: int = 250,
 
 
 if __name__ == "__main__":
-    perf_fl = Performance(method_type='FL',
+    perf_fl = Performance(method_type='NV',
                           date='Y15',
-                          freq_1=250,
-                          freq_2=5,
-                          EV=0.99,
+                          freq_1=500,
+                          freq_2=20,
+                          EV=0.999,
                           mkt='KOSPI200',
                           start_date='2011-01-01')
-    df_real = perf_trans_concat(method_type='FL_REAL')
+    # df_real = perf_trans_concat(method_type='FL_REAL')
 
-    # window_performance = perf_fl.perf_rolling_values()
-    # window_performance = np.round(
-    #     window_performance[-12:].reset_index(drop=True), 4)
+    # shares_count_plot()
+
+    window_performance = perf_fl.perf_rolling_values()
+    window_performance = np.round(
+        window_performance[-12:].reset_index(drop=True), 4)
+
+    perf_fl.perf_rolling_ov_periods(-13, -1)
+
     # res = perf_concat()
     # res_table = perf_concat_table()
     # res_rolling, res_rolling_ov = perf_concat_rolling(freq_1=250,
@@ -821,13 +823,15 @@ if __name__ == "__main__":
     # NOTE: BASE: FL 520, 20
     # USE -12 windows
 
-    # start_point = 369
-    # end_point = 393
+    # start_point = -13
+    # end_point = -1
 
-    # res_rolling_periods, res_rolling_ov_periods = perf_concat_rolling_periods(freq_1=250,
-    #                                                                           freq_2=5,
+    # res_rolling_periods, res_rolling_ov_periods = perf_concat_rolling_periods(freq_1=500,
+    #                                                                           freq_2=20,
     #                                                                           start_point=start_point,
     #                                                                           end_point=end_point)
     # print(f'{res_rolling}\n{res_rolling_ov}', end='')
     # print("\n ***** MOVING ON: PERIOD ROLLING ***** \n")
     # print(f'{res_rolling_periods}\n{res_rolling_ov_periods}', end='')
+
+    # trans_res = perf_trans_concat('NV')

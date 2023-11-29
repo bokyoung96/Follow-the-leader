@@ -10,18 +10,11 @@ import matplotlib.pylab as pylab
 
 from empirical_func import *
 from empirical_loader import *
+from empirical_plot_params import *
 
 
 start_date = '2011-01-01'
 end_date = '2022-12-31'
-
-params = {'figure.figsize': (30, 10),
-          'axes.labelsize': 20,
-          'axes.titlesize': 25,
-          'xtick.labelsize': 15,
-          'ytick.labelsize': 15,
-          'legend.fontsize': 15}
-pylab.rcParams.update(params)
 
 
 def load_data(date: str = 'Y15',
@@ -87,7 +80,7 @@ def plot_data(date: str = 'Y15',
     CM_99, CM_999, FL, FL_REAL, NV, idx_ret = load_plot_data(
         date, freq_1, freq_2)
 
-    plt.figure()
+    plt.figure(figsize=(30, 10))
     plt.title('Plots of each methodologies: {}, {}'.format(freq_1, freq_2))
     plt.plot(CM_99, label='CM-2006 (EV 99%)',
              alpha=0.75, color='orange', linestyle='--')
@@ -136,37 +129,49 @@ def plot_difference(date: str = 'Y15',
     FL_REAL_diff = FL_REAL_diff / diff_sum
     NV_diff = NV_diff / diff_sum
 
-    fig, ax1 = plt.subplots()
+    fig, ax1 = plt.subplots(figsize=(30, 10))
 
     ax1.set_title(
-        'DIFFERENCE OF EACH METHODOLOGIES: IN {}, OUT {}'.format(freq_1, freq_2))
-    ax1.plot(x, idx_ret, label='ORIGINAL INDEX',
+        '방법론별 원 지수와 차이 절대값 백분율 비교: IN {}, OUT {}'.format(freq_1, freq_2))
+    ax1.plot(x, idx_ret, label='원 지수',
              color='black', linewidth=5, alpha=1)
-    ax1.set_xlabel('Date')
-    ax1.set_ylabel('Cumulative return', color='black')
+    ax1.set_xlabel('년도')
+    ax1.set_ylabel('누적수익률', color='black')
     ax1.tick_params(axis='y', labelcolor='black')
 
     ax2 = ax1.twinx()
-    ax2.fill_between(x, 0, CM_99_diff, label='CM-2006 (EV 99%)',
-                     alpha=0.1, color='orange')
-    ax2.fill_between(x, CM_99_diff, CM_99_diff + CM_999_diff,
-                     label='CM-2006 (EV 99.9%)', alpha=0.1, color='blue')
-    ax2.fill_between(x, CM_99_diff + CM_999_diff,
-                     CM_99_diff + CM_999_diff + FL_diff, label='Follow the leader (Adjusted)', alpha=0.5, color='red')
-    ax2.fill_between(x, CM_99_diff + CM_999_diff + FL_diff,
-                     CM_99_diff + CM_999_diff + FL_diff + FL_REAL_diff, label='Follow the leader', alpha=0.5, color='coral')
-    ax2.fill_between(x, CM_99_diff + CM_999_diff + FL_diff + FL_REAL_diff,
-                     CM_99_diff + CM_999_diff + FL_diff + FL_REAL_diff + NV_diff, label='Naive correlation', alpha=0.1, color='green')
-    ax2.set_ylabel('Difference (Percentage scaled)')
+    ax2.fill_between(x, 0, FL_REAL_diff, label='Follow the leader', alpha=0.5)
+    ax2.fill_between(x, FL_REAL_diff, FL_REAL_diff + FL_diff,
+                     label='Follow the leader (Adjusted)', alpha=0.5)
+    ax2.fill_between(x, FL_REAL_diff + FL_diff, FL_REAL_diff + FL_diff + CM_99_diff,
+                     label='CM-2006 EV cutoff at 99%', alpha=0.5)
+    ax2.fill_between(x, FL_REAL_diff + FL_diff + CM_99_diff, FL_REAL_diff + FL_diff + CM_99_diff + CM_999_diff,
+                     label='CM-2006 EV cutoff at 99.9%', alpha=0.5)
+    ax2.fill_between(x, FL_REAL_diff + FL_diff + CM_99_diff + CM_999_diff, FL_REAL_diff + FL_diff + CM_99_diff + CM_999_diff + NV_diff,
+                     label='Naive correlation', alpha=0.5)
+
+    # ax2.fill_between(x, 0, CM_99_diff, label='CM-2006 EV cutoff at 99%',
+    #                  alpha=0.1, color='orange')
+    # ax2.fill_between(x, CM_99_diff, CM_99_diff + CM_999_diff,
+    #                  label='CM-2006 EV cutoff at 99.9%', alpha=0.1, color='blue')
+    # ax2.fill_between(x, CM_99_diff + CM_999_diff,
+    #                  CM_99_diff + CM_999_diff + FL_diff, label='Follow the leader (Adjusted)', alpha=0.5, color='red')
+    # ax2.fill_between(x, CM_99_diff + CM_999_diff + FL_diff,
+    #                  CM_99_diff + CM_999_diff + FL_diff + FL_REAL_diff, label='Follow the leader', alpha=0.5, color='coral')
+    # ax2.fill_between(x, CM_99_diff + CM_999_diff + FL_diff + FL_REAL_diff,
+    #                  CM_99_diff + CM_999_diff + FL_diff + FL_REAL_diff + NV_diff, label='Naive correlation', alpha=0.1, color='green')
+    ax2.set_ylabel('차이 절대값 (백분율)')
 
     ax1.legend(loc='lower left')
     ax2.legend(loc='lower right')
 
     # plt.show()
     plt.savefig(
-        f"./RUNNER_GRAPHS_ETC/Difference_{freq_1}_{freq_2}.jpg", format='jpeg')
+        f"./RUNNER_GRAPHS_ETC/plot_difference_{freq_1}_{freq_2}.jpg",
+        format='jpeg',
+        bbox_inches='tight')
 
 
 if __name__ == "__main__":
-    plot_data()
+    # plot_data()
     plot_difference()

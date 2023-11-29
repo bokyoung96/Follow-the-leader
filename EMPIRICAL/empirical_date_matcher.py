@@ -12,18 +12,12 @@ import matplotlib.pylab as pylab
 
 from empirical_func import *
 from empirical_loader import *
+from empirical_plot_params import *
 
 
+# start_date = '2018-01-01'
 start_date = '2011-01-01'
 end_date = '2022-12-31'
-
-params = {'figure.figsize': (30, 10),
-          'axes.labelsize': 20,
-          'axes.titlesize': 25,
-          'xtick.labelsize': 15,
-          'ytick.labelsize': 15,
-          'legend.fontsize': 15}
-pylab.rcParams.update(params)
 
 
 class DateMatcher(DataLoader):
@@ -181,30 +175,32 @@ class DateMatcher(DataLoader):
         markevery = [shares_count.index.get_loc(i) for i in slope_change_idx]
 
         fig, ax1 = plt.subplots(figsize=(30, 10))
-        plt.title('REPLICA VERSUS ORIGINAL: IN {}, OUT {}'.format(
-            self.freq_1, self.freq_2))
+        plt.title('방법론별 지수 추종 및 소요 종목 개수: {}, In {}, Out {}'.format(
+            self.method_type, self.freq_1, self.freq_2))
 
-        ax1.plot(replica, label='REPLICATED INDEX (REPLICA)',
+        ax1.plot(replica, label='복제 지수',
                  color='r', linewidth=1.5)
-        ax1.plot(original, label='ORIGINAL INDEX (ORIGINAL)',
+        ax1.plot(original, label='원 지수',
                  color='black', linewidth=1.5)
-        ax1.set_xlabel('Date')
-        ax1.set_ylabel('Cumulative return')
+        ax1.set_xlabel('년도')
+        ax1.set_ylabel('누적수익률')
         ax1.set_ylim(40, 180)
         ax1.legend(loc='best')
 
         ax2 = ax1.twinx()
-        ax2.plot(shares_count, label='SHARES COUNT',
-                 color='b', linewidth=1.5, linestyle='--',
+        ax2.plot(shares_count, label='소요 종목 개수',
+                 color='b', linewidth=1, linestyle='--',
                  marker='o', markevery=markevery)
-        ax2.set_ylabel('Number of shares')
-        ax2.set_ylim(0, 200)
-        ax2.axhline(shares_count_mean, color='g',
-                    linestyle='--', label='MEAN SHARES COUNT: {}'.format(shares_count_mean))
+        ax2.set_ylabel('종목 개수')
+        ax2.set_ylim(0, 150)
+        ax2.axhline(shares_count_mean, color='g', linewidth=0.5,
+                    linestyle='--', label='평균 소요 종목 개수: {}'.format(shares_count_mean))
         ax2.legend(loc='lower right')
 
         plt.savefig(
-            f'./{self.dir_global}/RUNNER_GRAPHS_{self.method_type}/{self.dir_main}.jpg', format='jpeg')
+            f'./{self.dir_global}/RUNNER_GRAPHS_{self.method_type}/{self.dir_main}.jpg',
+            format='jpeg',
+            bbox_inches='tight')
         # plt.show()
 
     def plot_data_both(self):
@@ -212,11 +208,6 @@ class DateMatcher(DataLoader):
             f"./{self.dir_global}/{self.dir_main}/replica_{self.date}.pkl")
         fl_real = pd.read_pickle(
             f"./{self.dir_global}_REAL/{self.dir_main}/replica_{self.date}.pkl")
-
-        shares_count_fl = pd.read_pickle(
-            f"./{self.dir_global}/{self.dir_main}/shares_count_{self.date}.pkl")
-        shares_count_fl_real = pd.read_pickle(
-            f"./{self.dir_global}_REAL/{self.dir_main}/shares_count_{self.date}.pkl")
 
         fl = fl[:-1]
         fl_real = fl_real[:-1]
@@ -232,71 +223,57 @@ class DateMatcher(DataLoader):
         original.rename(
             index={0: original.index[1] - pd.DateOffset(days=1)}, inplace=True)
 
-        shares_count_fl = pd.DataFrame(np.concatenate(
-            [item for item in shares_count_fl.values for _ in range(self.freq_2)]))
-        shares_count_fl = shares_count_fl[:replica_fl.shape[0]]
-        shares_count_fl = Func().func_plot_init_price(shares_count_fl, np.nan)
-        shares_count_fl_mean = int(shares_count_fl[1:].mean().values)
-
-        shares_count_fl_real = pd.DataFrame(np.concatenate(
-            [item for item in shares_count_fl_real.values for _ in range(self.freq_2)]))
-        shares_count_fl_real = shares_count_fl_real[:replica_fl_real.shape[0]]
-        shares_count_fl_real = Func().func_plot_init_price(shares_count_fl_real, np.nan)
-        shares_count_fl_real_mean = int(shares_count_fl_real[1:].mean().values)
-
-        shares_count_fl = shares_count_fl[:-1]
-        shares_count_fl_real = shares_count_fl_real[:-1]
-
         replica_fl.index = original.index
         replica_fl_real.index = original.index
-        shares_count_fl.index = original.index
-        shares_count_fl_real.index = original.index
 
-        shares_count_fl_diff = shares_count_fl.diff()
-        slope_change_idx = shares_count_fl.index[shares_count_fl_diff[0] != 0]
-        markevery = [shares_count_fl.index.get_loc(
-            i) for i in slope_change_idx]
+        # fig, ax1 = plt.subplots(figsize=(30, 10))
+        # plt.title('방법론별 지수 추종: In {}, Out {}'.format(
+        #     self.freq_1, self.freq_2))
 
-        shares_count_fl_real_diff = shares_count_fl_real.diff()
-        slope_change_idx_real = shares_count_fl_real.index[shares_count_fl_real_diff[0] != 0]
-        markevery_real = [shares_count_fl_real.index.get_loc(
-            i) for i in slope_change_idx_real]
+        # ax1.plot(replica_fl_real, label='복제 지수, FL',
+        #          color='r', linewidth=1, linestyle='--')
+        # ax1.plot(replica_fl, label='복제 지수, FL-Adjusted',
+        #          color='b', linewidth=1, linestyle='--')
+        # ax1.plot(original, label='원 지수',
+        #          color='black', linewidth=1.5)
+        # ax1.set_xlabel('년도')
+        # ax1.set_ylabel('누적수익률')
+        # ax1.set_ylim(40, 180)
+        # ax1.legend(loc='best')
 
-        lightred = '#FFAAAA'
+        # plt.show()
+        # plt.savefig(
+        #     './RUNNER_GRAPHS_ETC/plot_both_only_values.jpg',
+        #     format='jpeg',
+        #     bbox_inches='tight')
+
+        diff_fl_real = np.abs(replica_fl_real.values.flatten() - original)
+        diff_fl = np.abs(replica_fl.values.flatten() - original)
 
         fig, ax1 = plt.subplots(figsize=(30, 10))
-        plt.title('REPLICA VERSUS ORIGINAL: IN {}, OUT {}'.format(
+        plt.title('방법론별 지수 추종 및 원 지수와의 차이: In {}, Out {}'.format(
             self.freq_1, self.freq_2))
 
-        ax1.plot(replica_fl, label='REPLICATED INDEX (REPLICA, FL (Adjusted))',
-                 color='r', linewidth=1)
-        ax1.plot(replica_fl_real, label='REPLICATED INDEX (REPLICA, FL)',
-                 color='b', linewidth=1)
-        ax1.plot(original, label='ORIGINAL INDEX (ORIGINAL)',
+        ax1.plot(original, label='원 지수',
                  color='black', linewidth=1.5)
-        ax1.set_xlabel('Date')
-        ax1.set_ylabel('Cumulative return')
+        ax1.set_xlabel('년도')
+        ax1.set_ylabel('누적수익률')
         ax1.set_ylim(40, 180)
         ax1.legend(loc='best')
 
-        # ax2 = ax1.twinx()
-        # ax2.plot(shares_count_fl, label='SHARES COUNT, FL (Adjusted)',
-        #          color='b', linewidth=1.5, linestyle='--',
-        #          marker='o', markevery=markevery)
-        # ax2.plot(shares_count_fl_real, label='SHARES COUNT, FL',
-        #          color='lightblue', linewidth=1.5, linestyle='--',
-        #          marker='o', markevery=markevery_real)
-        # ax2.set_ylabel('Number of shares')
-        # ax2.set_ylim(0, 200)
-        # ax2.axhline(shares_count_fl_mean, color='g',
-        #             linestyle='--', label='MEAN SHARES COUNT (FL (Adjusted)): {}'.format(shares_count_fl_mean))
-        # ax2.axhline(shares_count_fl_real_mean, color='lightgreen',
-        #             linestyle='--', label='MEAN SHARES COUNT (FL): {}'.format(shares_count_fl_real_mean))
-        # ax2.legend(loc='lower right')
+        ax2 = ax1.twinx()
+        ax2.bar(diff_fl_real.index, diff_fl_real, label='복제 지수와 원 지수의 차이, FL',
+                color='r', linewidth=1, linestyle='--', alpha=0.5, width=0.75)
+        ax2.bar(diff_fl.index, diff_fl, label='복제 지수와 원 지수의 차이, FL-Adjusted',
+                color='b', linewidth=1, linestyle='--', alpha=0.5, width=0.75)
+        ax2.set_ylabel('차이 값')
+        ax2.legend(loc='best')
 
         # plt.show()
         plt.savefig(
-            './RUNNER_GRAPHS_ETC/plot_both_only_values.jpg', format='jpeg')
+            './RUNNER_GRAPHS_ETC/plot_both_difference.jpg',
+            format='jpeg',
+            bbox_inches='tight')
 
     def plot_data_both_trs(self):
         fl = pd.read_pickle(
@@ -426,19 +403,23 @@ class DateMatcher(DataLoader):
 
 if __name__ == "__main__":
     # method_types = ['CM', 'FL', 'NV']
-    method_types = ['FL']
-    freq_1s = [250]
-    freq_2s = [5]
-    count = 0
-    for val_1, val_2, val_3 in itertools.product(method_types, freq_1s, freq_2s):
-        date_matcher = DateMatcher(method_type=val_1,
-                                   freq_1=val_2,
-                                   freq_2=val_3,
-                                   mkt='KOSPI200',
-                                   EV=0.999)
-        # date_matcher.plot_data()
-        # date_matcher.save_data()
-        # date_matcher.plot_data_both_trs()
-        date_matcher.plot_data_both()
-        count += 1
-        print(f"ITERATION {count} COMPLETE. MOVING ON...")
+    # method_types = ['CM']
+    # freq_1s = [125, 250, 375, 500]
+    # freq_2s = [5, 10, 15, 20]
+    # count = 0
+    # for val_1, val_2, val_3 in itertools.product(method_types, freq_1s, freq_2s):
+    #     date_matcher = DateMatcher(method_type=val_1,
+    #                                freq_1=val_2,
+    #                                freq_2=val_3,
+    #                                mkt='KOSPI200',
+    #                                EV=0.999)
+    #     date_matcher.save_data()
+
+    #     count += 1
+    #     print(f"ITERATION {count} COMPLETE. MOVING ON...")
+
+    date_matcher = DateMatcher(method_type='FL',
+                               mkt='KOSDAQ150',
+                               freq_1=500,
+                               freq_2=20)
+    date_matcher.plot_data()

@@ -10,14 +10,8 @@ import matplotlib.pylab as pylab
 
 from empirical_func import *
 from empirical_loader import *
+from empirical_plot_params import *
 
-params = {'figure.figsize': (30, 10),
-          'axes.labelsize': 20,
-          'axes.titlesize': 25,
-          'xtick.labelsize': 15,
-          'ytick.labelsize': 15,
-          'legend.fontsize': 15}
-pylab.rcParams.update(params)
 
 # 250, 5 TEST
 start_date = '2011-01-01'
@@ -93,27 +87,31 @@ def plot_data():
     markevery_real = [replica_real_shares.index.get_loc(
         i) for i in slope_change_idx_real]
 
-    fig, ax1 = plt.subplots(figsize=(30, 10))
-    plt.title('VKOSPI VERSUS NUMBER OF SHARES: IN 250, OUT 5')
+    vkospi_mean = round(vkospi.mean().values[0], 2)
 
-    ax1.plot(vkospi, label='VKOSPI', color='black', linewidth=1.5)
-    ax1.axhline(vkospi.mean().values[0], color='g', linestyle='--',
-                label='VKSOPI MEAN', linewidth=1)
-    ax1.set_xlabel('Date')
-    ax1.set_ylabel('Value')
-    ax1.legend(loc='best')
+    fig, ax1 = plt.subplots(figsize=(30, 10))
+    plt.title('VKOSPI 지수와 리더 주식 개수의 관계: In 250, Out 5')
+
+    ax1.plot(vkospi, label='VKOSPI 지수', color='black', linewidth=1.5)
+    ax1.axhline(vkospi_mean, color='g', linestyle='--',
+                label='VKSOPI 지수 평균: {}'.format(vkospi_mean), linewidth=1)
+    ax1.set_xlabel('년도')
+    ax1.set_ylabel('지수 값')
+    ax1.legend(loc='upper right')
 
     ax2 = ax1.twinx()
-    ax2.plot(replica_shares, label='SHARES COUNT, FL (Adjsuted)',
-             color='r', linewidth=0.5, linestyle='--')
-    ax2.plot(replica_real_shares, label='SHARES COUNT, FL',
-             color='b', linewidth=0.5, linestyle='--')
-    ax2.set_ylabel('Number of shares')
-    ax2.legend(loc='upper left')
+    ax2.plot(replica_real_shares, label='리더 주식 개수, FL',
+             color='r', linewidth=1, linestyle='--')
+    ax2.plot(replica_shares, label='리더 주식 개수, FL-Adjusted',
+             color='b', linewidth=1, linestyle='--')
+    ax2.set_ylabel('종목 개수')
+    ax2.legend(loc='upper center')
 
     # plt.show()
     plt.savefig(
-        './RUNNER_GRAPHS_ETC/plot_vkospi.jpg', format='jpeg')
+        './RUNNER_GRAPHS_ETC/plot_vkospi.jpg',
+        format='jpeg',
+        bbox_inches='tight')
 
 
 def vkospi_vol(start_slice, end_slice):
@@ -150,4 +148,5 @@ def vkospi_vol(start_slice, end_slice):
 
 
 if __name__ == "__main__":
-    res = vkospi_vol('2017-07-01', '2019-01-03')
+    plot_data()
+    # res = vkospi_vol('2017-07-01', '2019-01-03')
