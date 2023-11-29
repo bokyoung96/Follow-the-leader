@@ -13,8 +13,7 @@ from pathlib import Path
 
 from empirical_func import *
 from empirical_loader import *
-
-# LOCATE DIRECTORY
+from empirical_plot_params import *
 
 
 def locate_dir(dir_name):
@@ -24,14 +23,6 @@ def locate_dir(dir_name):
 
 start_date = '2011-01-01'
 end_date = '2022-12-31'
-
-params = {'figure.figsize': (30, 10),
-          'axes.labelsize': 20,
-          'axes.titlesize': 25,
-          'xtick.labelsize': 15,
-          'ytick.labelsize': 15,
-          'legend.fontsize': 15}
-pylab.rcParams.update(params)
 
 
 class PerformanceTrs(DataLoader):
@@ -78,10 +69,10 @@ class PerformanceTrs(DataLoader):
         elif self.method_type == 'FL_REAL':
             self.method_type = 'FL'
             self.dir_global = f"RUNNER_{self.method_type}_{self.date}_p_val_0.1_REAL"
-            # self.dir_global_trs = f"RUNNER_{self.method_type}_{self.date}_p_val_0.1_TRS_REAL"
+            self.dir_global_trs = f"RUNNER_{self.method_type}_{self.date}_p_val_0.1_TRS_REAL"
             # self.dir_global_adj = f"RUNNER_{self.method_type}_{self.date}_p_val_0.1_ADJ"
             self.dir_main = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_p_val_0.1"
-            # self.dir_main_trs = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_p_val_0.1_{self.rolls}"
+            self.dir_main_trs = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_p_val_0.1_{self.rolls}"
             # self.dir_main_adj = f"RUNNER_{self.method_type}_{self.freq_1}_{self.freq_2}_p_val_0.1_adj"
 
         elif self.method_type == "CM":
@@ -131,21 +122,21 @@ class PerformanceTrs(DataLoader):
                 f'./{self.dir_global_trs}/{self.dir_main_trs}/shares_count_{self.date}.pkl')
 
             # ADJ
-            self.weights_save_adj = pd.read_pickle(
-                f'./{self.dir_global_adj}/{self.dir_main_adj}/weights_save_{self.date}.pkl')
-            self.weights_save_adj = self.weights_save_adj.loc[start_date:end_date]
+            # self.weights_save_adj = pd.read_pickle(
+            #     f'./{self.dir_global_adj}/{self.dir_main_adj}/weights_save_{self.date}.pkl')
+            # self.weights_save_adj = self.weights_save_adj.loc[start_date:end_date]
 
-            self.trans_cost_raw_adj = pd.read_pickle(
-                f'./{mkt}_TRANSACTION_COST/{mkt}_TRANSACTION_COST_{self.date}.pkl')
-            self.trans_cost_raw_adj = self.trans_cost_raw_adj.loc[start_date:end_date]
-            self.trans_cost_raw_adj = self.trans_cost_raw_adj[self.weights_save_adj.columns]
+            # self.trans_cost_raw_adj = pd.read_pickle(
+            #     f'./{mkt}_TRANSACTION_COST/{mkt}_TRANSACTION_COST_{self.date}.pkl')
+            # self.trans_cost_raw_adj = self.trans_cost_raw_adj.loc[start_date:end_date]
+            # self.trans_cost_raw_adj = self.trans_cost_raw_adj[self.weights_save_adj.columns]
 
-            self.replica_raw_adj = pd.read_pickle(
-                f'./{self.dir_global_adj}/{self.dir_main_adj}/replica_{self.date}.pkl')
-            self.replica_raw_adj = self.replica_raw_adj[0]
+            # self.replica_raw_adj = pd.read_pickle(
+            #     f'./{self.dir_global_adj}/{self.dir_main_adj}/replica_{self.date}.pkl')
+            # self.replica_raw_adj = self.replica_raw_adj[0]
 
-            self.shares_count_adj = pd.read_pickle(
-                f'./{self.dir_global_adj}/{self.dir_main_adj}/shares_count_{self.date}.pkl')
+            # self.shares_count_adj = pd.read_pickle(
+            #     f'./{self.dir_global_adj}/{self.dir_main_adj}/shares_count_{self.date}.pkl')
 
         else:
             pass
@@ -414,19 +405,20 @@ class PerformanceTrs(DataLoader):
         chgs_matched.index = self.replica.index
 
         plt.figure(figsize=(30, 10))
-        plt.title('COMPARISON OF NUMBER OF SHARES USED')
-        plt.xlabel('Date')
-        plt.ylabel('Number of shares')
+        plt.title('롤링 윈도우 보유 전략: In {}, Out {}'.format(
+            self.freq_1, self.freq_2))
+        plt.xlabel('년도')
+        plt.ylabel('종목 개수')
         # plt.ylim(0, 200)
 
-        plt.plot(shares_count_matched, label='SHARES COUNT (FL)',
+        plt.plot(shares_count_matched, label='리더 주식 개수, FL',
                  color='black', linewidth=2, linestyle='-',
                  marker='o', markevery=shares_count)
-        plt.plot(shares_count_trs_matched, label='SHARES COUNT (FL, HOLDING)',
-                 color='b', linewidth=1.5, linestyle='--',
+        plt.plot(shares_count_trs_matched, label='리더 주식 개수, FL, 롤링 윈도우 보유 전략',
+                 color='r', linewidth=1.5, linestyle='--',
                  marker='o', markevery=shares_count_trs)
-        plt.plot(chgs_matched, label='1ST HOLDING',
-                 color='r', linewidth=1, linestyle='--',
+        plt.plot(chgs_matched, label='첫 번째 롤링 윈도우, 보유',
+                 color='b', linewidth=1, linestyle='--',
                  marker='x', markevery=chgs)
         # plt.plot(shares_count_adj_matched, label='SHARES COUNT (ADJ)',
         #          color='r', linewidth=1.5, linestyle='--',
@@ -435,10 +427,16 @@ class PerformanceTrs(DataLoader):
                          where=(
                              shares_count_matched.iloc[:, 0] < shares_count_trs_matched.iloc[:, 0]),
                          color='gray', alpha=0.25)
-        plt.legend(loc='best')
+        plt.legend(loc='lower right')
         plt.show()
 
-        # plt.savefig('./RUNNER_GRAPHS_ETC/shares_used.jpg', format='jpeg')
+        # plt.savefig('./RUNNER_GRAPHS_ETC/shares_used.jpg',
+        #             format='jpeg',
+        #             bbox_inches='tight')
+
+        temp = (shares_count_matched.iloc[:, 0]
+                < shares_count_trs_matched.iloc[:, 0])
+        return temp
 
 
 def concat_trans_cost(freq_1: int = 250,
@@ -506,15 +504,15 @@ def concat_trans_cost_all(freq_2: int = 15):
 
 
 if __name__ == "__main__":
-    perf_trs = PerformanceTrs(method_type='FL',
+    perf_trs = PerformanceTrs(method_type='FL_REAL',
                               freq_1=250,
                               freq_2=20,
                               EV=0.99,
                               rolls=12)
     # perf_trs.plot_data()
-    perf_trs.plot_data_adj()
+    # perf_trs.plot_data_adj()
     # perf_trs.plot_data_difference()
-    # perf_trs.plot_weight_counts()
+    temp = perf_trs.plot_weight_counts()
     # print(perf_trs.table_data_difference())
     # print(perf_trs.table_turnover_difference())
     # res = concat_trans_cost()
